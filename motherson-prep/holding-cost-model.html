@@ -1,0 +1,730 @@
+<title>Motherson Warehouse — Inventory Holding Cost Diagnostic</title>
+<style>
+  :root{
+    color-scheme: light;
+    --page:        #f9f9f7;
+    --surface:     #fcfcfb;
+    --surface-2:   #f2f1ed;
+    --ink:         #0b0b0b;
+    --ink-2:       #52514e;
+    --ink-muted:   #898781;
+    --grid:        #e1e0d9;
+    --baseline:    #c3c2b7;
+    --border:      rgba(11,11,11,0.10);
+    --accent:      #184f95;
+    --accent-ink:  #0d366b;
+    --series-1:    #2a78d6;
+    --series-2:    #eb6834;
+    --series-3:    #1baf7a;
+    --series-4:    #eda100;
+    --good:        #0ca30c;
+    --good-text:   #006300;
+    --warning:     #b3760f;
+    --critical:    #d03b3b;
+    --seq-100:     #cde2fb;
+    --seq-250:     #86b6ef;
+    --seq-400:     #3987e5;
+    --seq-550:     #1c5cab;
+    --seq-700:     #0d366b;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:where(:not([data-theme="light"])){
+      color-scheme: dark;
+      --page:        #0d0d0d;
+      --surface:     #1a1a19;
+      --surface-2:   #212120;
+      --ink:         #ffffff;
+      --ink-2:       #c3c2b7;
+      --ink-muted:   #898781;
+      --grid:        #2c2c2a;
+      --baseline:    #383835;
+      --border:      rgba(255,255,255,0.10);
+      --accent:      #6ba3e8;
+      --accent-ink:  #a9c9f2;
+      --series-1:    #3987e5;
+      --series-2:    #d95926;
+      --series-3:    #199e70;
+      --series-4:    #c98500;
+      --good:        #0ca30c;
+      --good-text:   #4fd44f;
+      --warning:     #e0a944;
+      --critical:    #e66767;
+      --seq-100:     #16283f;
+      --seq-250:     #1c3c66;
+      --seq-400:     #2a63a3;
+      --seq-550:     #4a86ca;
+      --seq-700:     #86b6ef;
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --page:        #0d0d0d;
+    --surface:     #1a1a19;
+    --surface-2:   #212120;
+    --ink:         #ffffff;
+    --ink-2:       #c3c2b7;
+    --ink-muted:   #898781;
+    --grid:        #2c2c2a;
+    --baseline:    #383835;
+    --border:      rgba(255,255,255,0.10);
+    --accent:      #6ba3e8;
+    --accent-ink:  #a9c9f2;
+    --series-1:    #3987e5;
+    --series-2:    #d95926;
+    --series-3:    #199e70;
+    --series-4:    #c98500;
+    --good:        #0ca30c;
+    --good-text:   #4fd44f;
+    --warning:     #e0a944;
+    --critical:    #e66767;
+    --seq-100:     #16283f;
+    --seq-250:     #1c3c66;
+    --seq-400:     #2a63a3;
+    --seq-550:     #4a86ca;
+    --seq-700:     #86b6ef;
+  }
+  :root[data-theme="light"]{
+    color-scheme: light;
+    --page:        #f9f9f7;
+    --surface:     #fcfcfb;
+    --surface-2:   #f2f1ed;
+    --ink:         #0b0b0b;
+    --ink-2:       #52514e;
+    --ink-muted:   #898781;
+    --grid:        #e1e0d9;
+    --baseline:    #c3c2b7;
+    --border:      rgba(11,11,11,0.10);
+    --accent:      #184f95;
+    --accent-ink:  #0d366b;
+    --series-1:    #2a78d6;
+    --series-2:    #eb6834;
+    --series-3:    #1baf7a;
+    --series-4:    #eda100;
+    --good:        #0ca30c;
+    --good-text:   #006300;
+    --warning:     #b3760f;
+    --critical:    #d03b3b;
+    --seq-100:     #cde2fb;
+    --seq-250:     #86b6ef;
+    --seq-400:     #3987e5;
+    --seq-550:     #1c5cab;
+    --seq-700:     #0d366b;
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:var(--page);
+    color:var(--ink);
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.45;
+  }
+  .wrap{ max-width:1180px; margin:0 auto; padding: 28px 24px 80px; }
+
+  /* ---------- header ---------- */
+  .masthead{
+    display:flex; flex-wrap:wrap; gap:16px; justify-content:space-between; align-items:flex-end;
+    padding-bottom:20px; margin-bottom:24px; border-bottom:1px solid var(--border);
+  }
+  .eyebrow{
+    font-size:12px; font-weight:700; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--accent); margin:0 0 8px;
+  }
+  h1{
+    font-size:clamp(24px,3vw,32px); font-weight:800; letter-spacing:-.01em;
+    margin:0 0 6px; text-wrap:balance; color:var(--ink);
+  }
+  .sub{ color:var(--ink-2); font-size:14.5px; margin:0; max-width:62ch; }
+  .badge{
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--surface-2); border:1px solid var(--border); color:var(--ink-2);
+    font-size:12px; font-weight:600; padding:6px 10px; border-radius:999px; white-space:nowrap;
+  }
+  .badge .dot{ width:6px; height:6px; border-radius:50%; background:var(--warning); }
+
+  section{ margin-bottom:36px; }
+  .section-head{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+  .section-title{ font-size:18px; font-weight:750; letter-spacing:-.005em; margin:0; }
+  .section-note{ font-size:12.5px; color:var(--ink-muted); margin:0; }
+
+  .card{
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:20px;
+  }
+
+  /* ---------- assumptions panel ---------- */
+  .assumptions{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px 20px;
+  }
+  .field label{ display:block; font-size:11.5px; font-weight:650; letter-spacing:.03em; text-transform:uppercase; color:var(--ink-muted); margin-bottom:6px; }
+  .field input[type=number]{
+    width:100%; font:inherit; font-variant-numeric:tabular-nums; font-size:15px; font-weight:600;
+    padding:9px 10px; border-radius:8px; border:1px solid var(--border); background:var(--surface-2); color:var(--ink);
+  }
+  .field input[type=number]:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+  .field .hint{ font-size:11px; color:var(--ink-muted); margin-top:4px; }
+  .scenario-row{ display:flex; align-items:center; gap:10px; margin-top:18px; flex-wrap:wrap; }
+  .scenario-row .label{ font-size:11.5px; font-weight:650; letter-spacing:.03em; text-transform:uppercase; color:var(--ink-muted); }
+  .seg{ display:inline-flex; border:1px solid var(--border); border-radius:9px; overflow:hidden; }
+  .seg button{
+    font:inherit; font-size:13px; font-weight:650; padding:8px 14px; border:0; background:var(--surface-2);
+    color:var(--ink-2); cursor:pointer; border-right:1px solid var(--border);
+  }
+  .seg button:last-child{ border-right:0; }
+  .seg button[aria-pressed="true"]{ background:var(--accent); color:#fff; }
+
+  /* ---------- KPI tiles ---------- */
+  .kpis{ display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; }
+  .tile{ background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 18px; }
+  .tile .k-label{ font-size:12px; font-weight:650; color:var(--ink-muted); text-transform:uppercase; letter-spacing:.03em; margin-bottom:8px; }
+  .tile .k-value{ font-size:26px; font-weight:800; letter-spacing:-.01em; font-variant-numeric:tabular-nums; color:var(--ink); }
+  .tile .k-sub{ font-size:12.5px; color:var(--ink-2); margin-top:4px; }
+  .tile.hero{ background:linear-gradient(160deg,var(--accent),var(--accent-ink)); border-color:transparent; }
+  .tile.hero .k-label{ color:rgba(255,255,255,.78); }
+  .tile.hero .k-value{ color:#fff; }
+  .tile.hero .k-sub{ color:rgba(255,255,255,.85); }
+
+  /* ---------- charts common ---------- */
+  .chart-row{ display:grid; grid-template-columns: 1.15fr 1fr; gap:16px; align-items:stretch; }
+  @media (max-width:860px){ .chart-row{ grid-template-columns:1fr; } }
+  svg{ display:block; overflow:visible; font-family:inherit; }
+  .axis-label{ fill:var(--ink-muted); font-size:11px; }
+  .gridline{ stroke:var(--grid); stroke-width:1; }
+  .baseline{ stroke:var(--baseline); stroke-width:1; }
+  .bar-label{ fill:var(--ink-2); font-size:11.5px; font-variant-numeric:tabular-nums; }
+  .legend{ display:flex; flex-wrap:wrap; gap:14px; margin-top:12px; }
+  .legend-item{ display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--ink-2); }
+  .legend-swatch{ width:10px; height:10px; border-radius:3px; flex:none; }
+  .tooltip{
+    position:fixed; pointer-events:none; z-index:50; background:var(--ink); color:var(--page);
+    font-size:12.5px; padding:7px 10px; border-radius:7px; box-shadow:0 6px 18px rgba(0,0,0,.25);
+    transform:translate(-50%,-115%); white-space:nowrap; opacity:0; transition:opacity .08s ease;
+  }
+  :root[data-theme="light"] .tooltip, :root:not([data-theme="dark"]) .tooltip{ }
+  .tooltip.show{ opacity:1; }
+  .tooltip .tt-title{ font-weight:700; margin-bottom:2px; }
+  .hoverable{ cursor:pointer; }
+
+  /* ---------- matrix ---------- */
+  table.matrix{ border-collapse:collapse; width:100%; }
+  table.matrix th{ font-size:11.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-muted); font-weight:650; padding:6px 8px; text-align:center; }
+  table.matrix td{ padding:0; text-align:center; border:2px solid var(--surface); }
+  .mcell{ padding:12px 8px; border-radius:8px; cursor:default; }
+  .mcell .mv{ font-size:15px; font-weight:750; font-variant-numeric:tabular-nums; }
+  .mcell .mn{ font-size:11px; opacity:.85; margin-top:2px; }
+  .matrix-wrap{ display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap; }
+  .matrix-wrap table{ flex:1 1 320px; }
+  .matrix-side{ flex:1 1 240px; font-size:13px; color:var(--ink-2); }
+  .matrix-side h4{ font-size:13px; margin:0 0 8px; color:var(--ink); }
+  .matrix-side ul{ margin:0; padding-left:18px; }
+  .matrix-side li{ margin-bottom:6px; }
+  .callout{ background:var(--surface-2); border-left:3px solid var(--critical); border-radius:0 8px 8px 0; padding:10px 12px; margin-top:12px; font-size:12.5px; color:var(--ink-2); }
+  .callout b{ color:var(--ink); }
+
+  /* ---------- methodology ---------- */
+  .steps{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; }
+  .step{ background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 18px; }
+  .step .num{ font-size:12px; font-weight:800; color:var(--accent); letter-spacing:.02em; }
+  .step h4{ font-size:14.5px; margin:8px 0 6px; }
+  .step p{ font-size:13px; color:var(--ink-2); margin:0; }
+  .step .impact{ display:inline-block; margin-top:10px; font-size:12px; font-weight:700; color:var(--good-text); }
+
+  /* ---------- checklist ---------- */
+  .checklist{ display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:10px; }
+  .check-item{ display:flex; gap:10px; align-items:flex-start; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 14px; font-size:13px; color:var(--ink-2); }
+  .check-item .box{ flex:none; width:16px; height:16px; border-radius:4px; border:1.5px solid var(--baseline); margin-top:1px; }
+  .check-item b{ color:var(--ink); }
+
+  footer{ border-top:1px solid var(--border); padding-top:18px; margin-top:44px; font-size:12px; color:var(--ink-muted); }
+</style>
+
+<div class="wrap">
+
+  <div class="masthead">
+    <div>
+      <p class="eyebrow">Warehouse Inventory Diagnostic — Prepared for discussion</p>
+      <h1>Motherson Warehouse: Inventory Holding Cost Opportunity</h1>
+      <p class="sub">A working model of where holding cost sits today across 1,100 SKUs × 6 variants, and the levers that get you into the 15–20% reduction range — built to be recalculated live with your real numbers.</p>
+    </div>
+    <span class="badge"><span class="dot"></span> Illustrative model — pending your SKU-level data</span>
+  </div>
+
+  <section>
+    <div class="section-head">
+      <h2 class="section-title">1 · Inputs</h2>
+      <p class="section-note">Edit any field — every chart below recalculates instantly.</p>
+    </div>
+    <div class="card assumptions">
+      <div class="field">
+        <label for="in-sku">Base SKUs</label>
+        <input type="number" id="in-sku" value="1100" min="1" step="10">
+      </div>
+      <div class="field">
+        <label for="in-var">Variants per SKU</label>
+        <input type="number" id="in-var" value="6" min="1" step="1">
+      </div>
+      <div class="field">
+        <label for="in-cost">Avg. unit cost (₹)</label>
+        <input type="number" id="in-cost" value="1800" min="1" step="50">
+        <div class="hint">Blended landed cost per unit</div>
+      </div>
+      <div class="field">
+        <label for="in-demand">Avg. annual demand / line (units)</label>
+        <input type="number" id="in-demand" value="850" min="1" step="10">
+      </div>
+      <div class="field">
+        <label for="in-days">Current days of supply on hand</label>
+        <input type="number" id="in-days" value="96" min="1" step="1">
+        <div class="hint">Avg. inventory ÷ daily usage</div>
+      </div>
+      <div class="field">
+        <label for="in-rate">Holding cost rate (% of inventory value / yr)</label>
+        <input type="number" id="in-rate" value="24" min="1" step="0.5">
+        <div class="hint">Capital + storage + risk + service</div>
+      </div>
+    </div>
+    <div class="scenario-row">
+      <span class="label">Savings scenario</span>
+      <div class="seg" id="scenario-seg" role="group">
+        <button data-v="0.85" aria-pressed="false">Conservative</button>
+        <button data-v="1" aria-pressed="true">Base case</button>
+        <button data-v="1.18" aria-pressed="false">Aggressive</button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2 class="section-title">2 · Current state, at a glance</h2>
+    </div>
+    <div class="kpis" id="kpi-row"></div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2 class="section-title">3 · Where the cost sits: ABC × XYZ segmentation</h2>
+      <p class="section-note">A = value concentration · X/Y/Z = demand predictability, across all 6,600 SKU-variants</p>
+    </div>
+    <div class="card">
+      <div class="matrix-wrap">
+        <table class="matrix" id="matrix-table"></table>
+        <div class="matrix-side">
+          <h4>Reading the grid</h4>
+          <ul>
+            <li><b>A-X / A-Y</b> — your core movers. Keep service tight; this is not where cost is wasted.</li>
+            <li><b>C-Z</b> — low value, unpredictable demand. Classic dead/slow stock: capital and space tied up with little sales justification.</li>
+            <li>Shading = share of total inventory value sitting in that cell.</li>
+          </ul>
+          <div class="callout" id="matrix-callout"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2 class="section-title">4 · What's driving the cost, current vs. target</h2>
+    </div>
+    <div class="card">
+      <svg id="chart-drivers" width="100%" height="260" viewBox="0 0 900 260" preserveAspectRatio="xMinYMin meet"></svg>
+      <div class="legend" id="legend-drivers"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2 class="section-title">5 · The path to 15–20%: savings waterfall</h2>
+      <p class="section-note">Estimated annual holding cost, current → target</p>
+    </div>
+    <div class="card">
+      <svg id="chart-waterfall" width="100%" height="300" viewBox="0 0 900 300" preserveAspectRatio="xMinYMin meet"></svg>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2 class="section-title">6 · How we get there</h2>
+    </div>
+    <div class="steps" id="steps-row"></div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2 class="section-title">7 · To calibrate this with your real numbers</h2>
+      <p class="section-note">Swap every assumption above for actuals in about a week with this pulled</p>
+    </div>
+    <div class="checklist">
+      <div class="check-item"><span class="box"></span><span><b>SKU master</b> — item, variant, category, standard cost, current on-hand qty.</span></div>
+      <div class="check-item"><span class="box"></span><span><b>12–24 months issue history</b> — monthly demand by SKU-variant, for variability and seasonality.</span></div>
+      <div class="check-item"><span class="box"></span><span><b>Current reorder policy</b> — reorder points, order quantities, safety stock rules per line.</span></div>
+      <div class="check-item"><span class="box"></span><span><b>Warehouse cost detail</b> — space, labor/handling, utilities, insurance, financing rate used internally.</span></div>
+      <div class="check-item"><span class="box"></span><span><b>Aging / slow-mover report</b> — inventory with no movement in 90 / 180 / 365 days.</span></div>
+      <div class="check-item"><span class="box"></span><span><b>Service level targets</b> — by customer/line, where they exist today.</span></div>
+    </div>
+  </section>
+
+  <footer>
+    All figures on this page are illustrative, generated from the editable assumptions above using industry-benchmark holding-cost ratios — not Motherson's actual data. Intended as a working discussion model; every number becomes precise once SKU-level history is available.
+  </footer>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+(function(){
+  'use strict';
+  var root = document.documentElement;
+  var tooltip = document.getElementById('tooltip');
+  var fmtINR = new Intl.NumberFormat('en-IN', {maximumFractionDigits:0});
+  var fmtINRcr = function(v){
+    if (Math.abs(v) >= 1e7) return '₹' + (v/1e7).toFixed(2) + ' Cr';
+    if (Math.abs(v) >= 1e5) return '₹' + (v/1e5).toFixed(1) + ' L';
+    return '₹' + fmtINR.format(v);
+  };
+  var fmtNum = function(v){ return fmtINR.format(Math.round(v)); };
+  var fmtPct = function(v,d){ return v.toFixed(d==null?1:d) + '%'; };
+
+  function css(name){ return getComputedStyle(root).getPropertyValue(name).trim(); }
+
+  // ---------- seeded RNG ----------
+  function mulberry32(a){
+    return function(){
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      var t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  var CATEGORIES = ['Wiring Harness','Mirror Assemblies','Polymer & Interior','Lighting Systems','Elastomer & Sealing','Modules & Others'];
+
+  function scenarioMultiplier(){
+    var active = document.querySelector('#scenario-seg button[aria-pressed="true"]');
+    return active ? parseFloat(active.getAttribute('data-v')) : 1;
+  }
+
+  function readInputs(){
+    return {
+      skuCount: Math.max(1, parseFloat(document.getElementById('in-sku').value) || 1100),
+      variants: Math.max(1, parseFloat(document.getElementById('in-var').value) || 6),
+      unitCost: Math.max(1, parseFloat(document.getElementById('in-cost').value) || 1800),
+      demand:   Math.max(1, parseFloat(document.getElementById('in-demand').value) || 850),
+      days:     Math.max(1, parseFloat(document.getElementById('in-days').value) || 96),
+      rate:     Math.max(0.5, parseFloat(document.getElementById('in-rate').value) || 24)
+    };
+  }
+
+  // ---------- core model ----------
+  function buildModel(inputs){
+    var totalLines = Math.round(inputs.skuCount * inputs.variants);
+    var avgInvUnits = inputs.demand / 365 * inputs.days;
+    var inventoryValue = totalLines * inputs.unitCost * avgInvUnits;
+    var holdingRate = inputs.rate / 100;
+    var currentHoldingCost = inventoryValue * holdingRate;
+
+    // cost driver split of the blended rate (illustrative, sums to 1)
+    var driverSplit = { capital: 0.46, storage: 0.19, risk: 0.27, service: 0.08 };
+
+    // synthetic per-line distribution for ABC/XYZ (pareto by rank)
+    var rnd = mulberry32(90210 + Math.round(totalLines));
+    var n = Math.min(totalLines, 6600); // cap synthetic sample for render cost
+    var weights = [];
+    var wsum = 0;
+    for (var i=0;i<n;i++){
+      var rank = i+1;
+      var w = 1/Math.pow(rank,0.9);
+      weights.push(w); wsum += w;
+    }
+    var lines = [];
+    var cum = 0;
+    for (var j=0;j<n;j++){
+      var shareOfValue = weights[j]/wsum;
+      cum += shareOfValue;
+      var cv = Math.min(1.5, Math.max(0.12, rnd()*1.15 + (j/n)*0.55));
+      lines.push({ value: shareOfValue, cumValue: cum, cv: cv });
+    }
+    // classify
+    var matrix = {}; // key "A-X" etc -> {count, value}
+    var abcCuts = [0.8, 0.95]; // A up to 80%, B up to 95%, C rest
+    lines.forEach(function(l){
+      var abc = l.cumValue <= abcCuts[0] ? 'A' : (l.cumValue <= abcCuts[1] ? 'B' : 'C');
+      var xyz = l.cv < 0.5 ? 'X' : (l.cv < 0.9 ? 'Y' : 'Z');
+      var key = abc+'-'+xyz;
+      if (!matrix[key]) matrix[key] = {count:0, value:0};
+      matrix[key].count += 1;
+      matrix[key].value += l.value;
+    });
+    // scale synthetic sample counts up to actual totalLines proportionally
+    var scaleFactor = totalLines / n;
+    Object.keys(matrix).forEach(function(k){ matrix[k].countScaled = matrix[k].count * scaleFactor; });
+
+    var czShare = (matrix['C-Z'] ? matrix['C-Z'].value : 0);
+    var cyShare = (matrix['C-Y'] ? matrix['C-Y'].value : 0);
+
+    // ---------- savings levers ----------
+    var mult = scenarioMultiplier();
+    var deadStockPct = Math.min(0.10, Math.max(0.045, czShare*0.55 + cyShare*0.12)) * mult;
+    var safetyStockPct = 0.062 * mult;
+    var eoqPct = 0.032 * mult;
+    var skuRationalPct = 0.021 * mult;
+
+    var levers = [
+      { key:'safety', label:'Safety-stock right-sizing', pct: safetyStockPct, desc:'Set reorder points from actual demand variability instead of flat buffer days.' },
+      { key:'dead',   label:'Dead / slow-mover liquidation', pct: deadStockPct, desc:'Clear or return C-Z / C-Y inventory identified in the matrix above.' },
+      { key:'eoq',    label:'Order-quantity (EOQ) optimization', pct: eoqPct, desc:'Right-size lot sizes against true carrying vs. ordering cost trade-off.' },
+      { key:'sku',    label:'Variant rationalization', pct: skuRationalPct, desc:'Consolidate low-demand variants that fragment volume across the 6 SKU variants.' }
+    ];
+    var totalSavingsPct = levers.reduce(function(s,l){return s+l.pct;},0);
+    var totalSavingsAmt = currentHoldingCost * totalSavingsPct;
+    var targetHoldingCost = currentHoldingCost - totalSavingsAmt;
+
+    return {
+      totalLines: totalLines, inventoryValue: inventoryValue, holdingRate: holdingRate,
+      currentHoldingCost: currentHoldingCost, driverSplit: driverSplit, matrix: matrix,
+      czShare: czShare, cyShare: cyShare, levers: levers, totalSavingsPct: totalSavingsPct,
+      totalSavingsAmt: totalSavingsAmt, targetHoldingCost: targetHoldingCost
+    };
+  }
+
+  // ---------- tooltip helper ----------
+  function showTip(evt, title, lines){
+    tooltip.innerHTML = '<div class="tt-title">'+title+'</div>' + lines.map(function(l){return '<div>'+l+'</div>';}).join('');
+    tooltip.style.left = evt.clientX + 'px';
+    tooltip.style.top = evt.clientY + 'px';
+    tooltip.classList.add('show');
+  }
+  function moveTip(evt){ tooltip.style.left = evt.clientX + 'px'; tooltip.style.top = evt.clientY + 'px'; }
+  function hideTip(){ tooltip.classList.remove('show'); }
+
+  // ---------- render: KPI tiles ----------
+  function renderKPIs(m){
+    var row = document.getElementById('kpi-row');
+    var tiles = [
+      { label:'Total SKU-variants', value: fmtNum(m.totalLines), sub: (m.totalLines/6).toFixed(0)+' base SKUs × 6 variants', hero:false },
+      { label:'Estimated inventory value', value: fmtINRcr(m.inventoryValue), sub:'at current days-of-supply', hero:false },
+      { label:'Current annual holding cost', value: fmtINRcr(m.currentHoldingCost), sub: fmtPct(m.holdingRate*100) + ' of inventory value / yr', hero:false },
+      { label:'Modelled savings opportunity', value: fmtPct(m.totalSavingsPct*100), sub: fmtINRcr(m.totalSavingsAmt) + ' / year', hero:true },
+      { label:'Target holding cost', value: fmtINRcr(m.targetHoldingCost), sub:'after all four levers', hero:false }
+    ];
+    row.innerHTML = tiles.map(function(t){
+      return '<div class="tile'+(t.hero?' hero':'')+'"><div class="k-label">'+t.label+'</div><div class="k-value">'+t.value+'</div><div class="k-sub">'+t.sub+'</div></div>';
+    }).join('');
+  }
+
+  // ---------- render: ABC x XYZ matrix ----------
+  function renderMatrix(m){
+    var abcRows = ['A','B','C'];
+    var xyzCols = ['X','Y','Z'];
+    var maxVal = 0;
+    abcRows.forEach(function(a){ xyzCols.forEach(function(x){ var c=m.matrix[a+'-'+x]; if(c) maxVal=Math.max(maxVal,c.value); }); });
+    var seqSteps = ['--seq-100','--seq-250','--seq-400','--seq-550','--seq-700'];
+    function colorFor(v){
+      if (!v) return css('--surface-2');
+      var t = maxVal ? v/maxVal : 0;
+      var idx = Math.min(seqSteps.length-1, Math.round(t*(seqSteps.length-1)));
+      return css(seqSteps[idx]);
+    }
+    function textColorFor(v){
+      var t = maxVal ? v/maxVal : 0;
+      return t > 0.55 ? '#fff' : css('--ink');
+    }
+    var html = '<thead><tr><th></th>' + xyzCols.map(function(x){return '<th>'+x+'</th>';}).join('') + '</tr></thead><tbody>';
+    abcRows.forEach(function(a){
+      html += '<tr><th>'+a+'</th>';
+      xyzCols.forEach(function(x){
+        var key = a+'-'+x;
+        var cell = m.matrix[key] || {value:0,countScaled:0};
+        var bg = colorFor(cell.value);
+        var fg = textColorFor(cell.value);
+        html += '<td><div class="mcell hoverable" data-key="'+key+'" data-count="'+Math.round(cell.countScaled)+'" data-value="'+(cell.value*100).toFixed(1)+'" style="background:'+bg+';color:'+fg+'">'
+              + '<div class="mv">'+fmtPct(cell.value*100)+'</div><div class="mn">'+fmtNum(cell.countScaled)+' lines</div></div></td>';
+      });
+      html += '</tr>';
+    });
+    html += '</tbody>';
+    var table = document.getElementById('matrix-table');
+    table.innerHTML = html;
+    table.querySelectorAll('.mcell').forEach(function(cell){
+      cell.addEventListener('mousemove', function(evt){
+        var key = cell.getAttribute('data-key');
+        showTip(evt, 'Segment ' + key, [
+          fmtNum(cell.getAttribute('data-count')) + ' SKU-variants',
+          cell.getAttribute('data-value') + '% of total inventory value'
+        ]);
+      });
+      cell.addEventListener('mouseleave', hideTip);
+    });
+
+    var callout = document.getElementById('matrix-callout');
+    var czPct = fmtPct((m.matrix['C-Z']?m.matrix['C-Z'].value:0)*100);
+    var czCount = fmtNum(m.matrix['C-Z']?m.matrix['C-Z'].countScaled:0);
+    callout.innerHTML = '<b>C-Z cell:</b> ~'+czCount+' SKU-variants tying up '+czPct+' of inventory value with unpredictable, low-volume demand — the first place to look for dead stock.';
+  }
+
+  // ---------- render: cost driver stacked bar (current vs target) ----------
+  function renderDrivers(m){
+    var svg = document.getElementById('chart-drivers');
+    var W = 900, H = 260;
+    var order = [['capital','Capital cost','--series-1'],['storage','Storage & handling','--series-2'],['risk','Risk & obsolescence','--series-3'],['service','Service (insurance/tax)','--series-4']];
+    var current = m.currentHoldingCost;
+    var target = m.targetHoldingCost;
+    var maxTotal = current;
+    var barW = 150, gap = 2;
+    var chartTop = 24, chartBottom = 210;
+    var chartH = chartBottom - chartTop;
+    var xCurrent = 260, xTarget = 560;
+
+    function seg(total, split){
+      var out = {}; var acc=0;
+      order.forEach(function(o){ out[o[0]] = {from:acc, to:acc+split[o[0]]}; acc += split[o[0]]; });
+      return out;
+    }
+    var curSeg = seg(current, m.driverSplit);
+    // target keeps same relative split but risk shrinks disproportionately (dead-stock cleanup)
+    var targetSplit = {
+      capital: m.driverSplit.capital*0.97,
+      storage: m.driverSplit.storage*0.95,
+      risk: m.driverSplit.risk*0.62,
+      service: m.driverSplit.service*0.97
+    };
+    var tSum = targetSplit.capital+targetSplit.storage+targetSplit.risk+targetSplit.service;
+    Object.keys(targetSplit).forEach(function(k){ targetSplit[k] = targetSplit[k]/tSum; });
+    var tgtSeg = seg(target, targetSplit);
+
+    function yFor(v){ return chartBottom - (v/maxTotal)*chartH; }
+
+    var svgParts = [];
+    // gridlines
+    for (var g=0; g<=4; g++){
+      var gv = maxTotal*g/4;
+      var gy = yFor(gv);
+      svgParts.push('<line class="gridline" x1="80" x2="'+(W-40)+'" y1="'+gy+'" y2="'+gy+'"></line>');
+      svgParts.push('<text class="axis-label" x="74" y="'+(gy+4)+'" text-anchor="end">'+fmtINRcr(gv)+'</text>');
+    }
+    svgParts.push('<line class="baseline" x1="80" x2="'+(W-40)+'" y1="'+chartBottom+'" y2="'+chartBottom+'"></line>');
+
+    [['current', current, curSeg, xCurrent, 'Current'], ['target', target, tgtSeg, xTarget, 'Target']].forEach(function(bar){
+      var segMap = bar[2], x = bar[3], name = bar[4];
+      order.forEach(function(o){
+        var s = segMap[o[0]];
+        var y1 = yFor(s.from), y2 = yFor(s.to);
+        var h = Math.max(0, y1-y2);
+        if (h < 0.5) return;
+        var color = css(o[2]);
+        var val = (s.to - s.from);
+        svgParts.push('<rect class="hoverable seg-rect" data-label="'+o[1]+' — '+name+'" data-value="'+fmtINRcr(val)+'" x="'+(x - barW/2)+'" y="'+y2+'" width="'+barW+'" height="'+Math.max(h-gap,0)+'" rx="3" fill="'+color+'"></rect>');
+      });
+      svgParts.push('<text class="bar-label" x="'+x+'" y="'+(chartBottom+22)+'" text-anchor="middle" font-weight="700" fill="'+css('--ink')+'">'+name+'</text>');
+      svgParts.push('<text class="bar-label" x="'+x+'" y="'+(yFor(bar[1])-8)+'" text-anchor="middle" font-weight="700">'+fmtINRcr(bar[1])+'</text>');
+    });
+
+    svg.innerHTML = svgParts.join('');
+    svg.querySelectorAll('.seg-rect').forEach(function(r){
+      r.addEventListener('mousemove', function(evt){ showTip(evt, r.getAttribute('data-label'), [r.getAttribute('data-value')+' / yr']); });
+      r.addEventListener('mouseleave', hideTip);
+    });
+
+    var legend = document.getElementById('legend-drivers');
+    legend.innerHTML = order.map(function(o){
+      return '<span class="legend-item"><span class="legend-swatch" style="background:'+css(o[2])+'"></span>'+o[1]+'</span>';
+    }).join('');
+  }
+
+  // ---------- render: waterfall ----------
+  function renderWaterfall(m){
+    var svg = document.getElementById('chart-waterfall');
+    var W = 900, H = 300;
+    var chartTop = 20, chartBottom = 240;
+    var chartH = chartBottom - chartTop;
+    var steps = [{label:'Current\nholding cost', delta: m.currentHoldingCost, type:'total'}];
+    m.levers.forEach(function(l){ steps.push({label:l.label, delta: -(m.currentHoldingCost*l.pct), type:'delta', pct:l.pct}); });
+    steps.push({label:'Target\nholding cost', delta: m.targetHoldingCost, type:'total'});
+
+    var maxV = m.currentHoldingCost;
+    function yFor(v){ return chartBottom - (v/maxV)*chartH; }
+
+    var n = steps.length;
+    var barW = 100, slot = (W-140)/n;
+    var running = 0;
+    var svgParts = [];
+    for (var g=0; g<=4; g++){
+      var gv = maxV*g/4, gy = yFor(gv);
+      svgParts.push('<line class="gridline" x1="70" x2="'+(W-20)+'" y1="'+gy+'" y2="'+gy+'"></line>');
+      svgParts.push('<text class="axis-label" x="64" y="'+(gy+4)+'" text-anchor="end">'+fmtINRcr(gv)+'</text>');
+    }
+    svgParts.push('<line class="baseline" x1="70" x2="'+(W-20)+'" y1="'+chartBottom+'" y2="'+chartBottom+'"></line>');
+
+    steps.forEach(function(s, i){
+      var cx = 100 + i*slot + slot/2;
+      var top, bottom, color, valLabel;
+      if (s.type === 'total'){
+        running = s.delta;
+        top = yFor(s.delta); bottom = chartBottom;
+        color = i===0 ? css('--series-1') : css('--accent');
+        valLabel = fmtINRcr(s.delta);
+      } else {
+        var before = running;
+        running += s.delta;
+        top = yFor(Math.max(before, running));
+        bottom = yFor(Math.min(before, running));
+        color = css('--good');
+        valLabel = '−' + fmtPct(s.pct*100) + ' · ' + fmtINRcr(Math.abs(s.delta));
+        // connector
+        svgParts.push('<line class="gridline" x1="'+(cx-slot/2+8)+'" x2="'+(cx-barW/2)+'" y1="'+yFor(before)+'" y2="'+yFor(before)+'"></line>');
+      }
+      svgParts.push('<rect class="hoverable wf-rect" data-label="'+s.label.replace('\n',' ')+'" data-value="'+valLabel+'" x="'+(cx-barW/2)+'" y="'+Math.min(top,bottom)+'" width="'+barW+'" height="'+Math.max(2,Math.abs(bottom-top))+'" rx="3" fill="'+color+'"></rect>');
+      svgParts.push('<text class="bar-label" x="'+cx+'" y="'+(Math.min(top,bottom)-8)+'" text-anchor="middle" font-weight="700">'+valLabel+'</text>');
+      var labelLines = s.label.split('\n');
+      labelLines.forEach(function(ln,li){
+        svgParts.push('<text class="bar-label" x="'+cx+'" y="'+(chartBottom+20+li*13)+'" text-anchor="middle">'+ln+'</text>');
+      });
+    });
+
+    svg.innerHTML = svgParts.join('');
+    svg.querySelectorAll('.wf-rect').forEach(function(r){
+      r.addEventListener('mousemove', function(evt){ showTip(evt, r.getAttribute('data-label'), [r.getAttribute('data-value')]); });
+      r.addEventListener('mouseleave', hideTip);
+    });
+  }
+
+  // ---------- render: methodology steps ----------
+  function renderSteps(m){
+    var row = document.getElementById('steps-row');
+    var items = [
+      { n:'01', t:'Segment', d:'ABC × XYZ every SKU-variant to separate true stockout risk from padding.', pct:null },
+      { n:'02', t:'Right-size safety stock', d:'Statistical reorder points by demand variability, not flat "days of cover" rules.', pct: m.levers[0].pct },
+      { n:'03', t:'Clear dead stock', d:'Liquidate, return, or repurpose C-Z / C-Y inventory identified in the matrix.', pct: m.levers[1].pct },
+      { n:'04', t:'Retune order quantities', d:'EOQ against real carrying vs. ordering cost — fewer, right-sized replenishments.', pct: m.levers[2].pct },
+      { n:'05', t:'Rationalize variants', d:'Consolidate low-demand variants fragmenting volume across the 6-variant range.', pct: m.levers[3].pct }
+    ];
+    row.innerHTML = items.map(function(it){
+      return '<div class="step"><div class="num">'+it.n+'</div><h4>'+it.t+'</h4><p>'+it.d+'</p>'
+        + (it.pct!=null ? '<div class="impact">≈ '+fmtPct(it.pct*100)+' of holding cost</div>' : '')
+        + '</div>';
+    }).join('');
+  }
+
+  function renderAll(){
+    var m = buildModel(readInputs());
+    renderKPIs(m);
+    renderMatrix(m);
+    renderDrivers(m);
+    renderWaterfall(m);
+    renderSteps(m);
+  }
+
+  ['in-sku','in-var','in-cost','in-demand','in-days','in-rate'].forEach(function(id){
+    document.getElementById(id).addEventListener('input', renderAll);
+  });
+  document.getElementById('scenario-seg').addEventListener('click', function(evt){
+    var btn = evt.target.closest('button');
+    if (!btn) return;
+    this.querySelectorAll('button').forEach(function(b){ b.setAttribute('aria-pressed', b===btn ? 'true' : 'false'); });
+    renderAll();
+  });
+  window.addEventListener('mousemove', function(evt){ if (tooltip.classList.contains('show')) moveTip(evt); });
+
+  renderAll();
+})();
+</script>
