@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f4f5f7;
+  --foreground: #0b1a35;
+
+  /* Tournament identity: dark navy / gold / cricket red */
+  --color-navy-950: #050b1a;
+  --color-navy-900: #0b1a35;
+  --color-navy-800: #122549;
+  --color-navy-700: #1a3260;
+  --color-navy-600: #234180;
+
+  --color-gold-500: #f2b705;
+  --color-gold-400: #f6c92b;
+  --color-gold-300: #fada6b;
+
+  --color-red-600: #d62828;
+  --color-red-500: #e63946;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  --color-navy-950: var(--color-navy-950);
+  --color-navy-900: var(--color-navy-900);
+  --color-navy-800: var(--color-navy-800);
+  --color-navy-700: var(--color-navy-700);
+  --color-navy-600: var(--color-navy-600);
+  --color-gold-500: var(--color-gold-500);
+  --color-gold-400: var(--color-gold-400);
+  --color-gold-300: var(--color-gold-300);
+  --color-red-600: var(--color-red-600);
+  --color-red-500: var(--color-red-500);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+.live-pulse {
+  animation: live-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}

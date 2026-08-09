@@ -1,0 +1,77 @@
+'use client';
+
+import { useActionState } from 'react';
+import type { Player } from '@/types/database';
+import type { PlayerFormState } from '@/lib/actions/players';
+
+export default function PlayerForm({
+  player,
+  action,
+}: {
+  player?: Player;
+  action: (state: PlayerFormState, formData: FormData) => Promise<PlayerFormState>;
+}) {
+  const [state, formAction, pending] = useActionState(action, null);
+
+  return (
+    <form action={formAction} className="space-y-4">
+      <Field label="Full Name" name="name" defaultValue={player?.name} required />
+      <Field
+        label="Mobile Number"
+        name="mobile"
+        defaultValue={player?.mobile}
+        required
+        inputMode="numeric"
+        maxLength={10}
+      />
+      <Field label="Village" name="village" defaultValue={player?.village ?? ''} />
+      <Field label="Age (optional)" name="age" type="number" defaultValue={player?.age ?? ''} />
+      <Field label="Photo URL (optional)" name="photo_url" defaultValue={player?.photo_url ?? ''} />
+
+      {state?.error && (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">{state.error}</p>
+      )}
+
+      <button
+        type="submit"
+        disabled={pending}
+        className="w-full rounded-lg bg-navy-900 py-3 text-sm font-bold uppercase tracking-wide text-white disabled:opacity-60 sm:w-auto sm:px-8"
+      >
+        {pending ? 'Saving…' : player ? 'Save Changes' : 'Add Player'}
+      </button>
+    </form>
+  );
+}
+
+function Field({
+  label,
+  name,
+  defaultValue,
+  required,
+  type = 'text',
+  inputMode,
+  maxLength,
+}: {
+  label: string;
+  name: string;
+  defaultValue?: string | number | null;
+  required?: boolean;
+  type?: string;
+  inputMode?: 'numeric';
+  maxLength?: number;
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-bold uppercase text-slate-600">{label}</label>
+      <input
+        name={name}
+        type={type}
+        required={required}
+        defaultValue={defaultValue ?? ''}
+        inputMode={inputMode}
+        maxLength={maxLength}
+        className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-navy-600 focus:outline-none"
+      />
+    </div>
+  );
+}
