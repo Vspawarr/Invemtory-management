@@ -22,14 +22,17 @@ export default function BallByBall({
     overs.set(e.over_number, list);
   }
 
-  let runningTotal = 0;
   const overSummaries = [...overs.entries()]
     .sort((a, b) => a[0] - b[0])
-    .map(([overNumber, balls]) => {
-      const overRuns = balls.reduce((sum, b) => sum + b.runs, 0);
-      runningTotal += overRuns;
-      return { overNumber, balls, overRuns, scoreAfter: runningTotal };
-    })
+    .reduce<{ overNumber: number; balls: ScoringEvent[]; overRuns: number; scoreAfter: number }[]>(
+      (acc, [overNumber, balls]) => {
+        const overRuns = balls.reduce((sum, b) => sum + b.runs, 0);
+        const scoreAfter = (acc[acc.length - 1]?.scoreAfter ?? 0) + overRuns;
+        acc.push({ overNumber, balls, overRuns, scoreAfter });
+        return acc;
+      },
+      []
+    )
     .reverse(); // most recent over first
 
   return (

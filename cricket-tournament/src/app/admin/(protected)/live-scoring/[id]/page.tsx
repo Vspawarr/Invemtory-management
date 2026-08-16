@@ -60,6 +60,7 @@ export default async function LiveScoringPage({ params }: { params: Promise<{ id
   return (
     <div className="mx-auto max-w-lg">
       <ScoringConsole
+        key={currentInnings.id}
         matchId={id}
         matchOvers={match.overs}
         teamAId={match.team_a_id}
