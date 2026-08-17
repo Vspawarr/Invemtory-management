@@ -42,8 +42,8 @@ left join team_players tp on tp.player_id = p.id
 left join teams t on t.id = tp.team_id
 left join (
   select player_id,
-    sum(runs_scored) as runs_scored,
-    sum(wickets_taken) as wickets_taken,
+    sum(runs_scored)::integer as runs_scored,
+    sum(wickets_taken)::integer as wickets_taken,
     max(runs_scored) as highest_score
   from match_players
   group by player_id
@@ -67,12 +67,12 @@ left join team_statistics ts on ts.team_id = t.id
 left join team_players tp on tp.team_id = t.id
 left join players p on p.id = tp.player_id
 left join (
-  select batting_team_id as team_id, sum(total_runs) as total
+  select batting_team_id as team_id, sum(total_runs)::integer as total
   from innings
   group by batting_team_id
 ) runs_for on runs_for.team_id = t.id
 left join (
-  select bowling_team_id as team_id, sum(total_runs) as total
+  select bowling_team_id as team_id, sum(total_runs)::integer as total
   from innings
   group by bowling_team_id
 ) runs_against on runs_against.team_id = t.id
