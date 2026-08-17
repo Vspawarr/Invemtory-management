@@ -78,6 +78,8 @@ export default function BallByBall({
                   : e.event_type === 'CORRECTION'
                   ? `Correction: ${e.runs >= 0 ? '+' : ''}${e.runs}${e.reason ? ` (${e.reason})` : ''}`
                   : `${e.runs} run${e.runs === 1 ? '' : 's'}`}
+                {e.field_zone ? ` · ${e.field_zone}` : ''}
+                {e.commentary ? ` — "${e.commentary}"` : ''}
               </li>
             ))}
           </ul>

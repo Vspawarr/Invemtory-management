@@ -7,6 +7,7 @@ import { startSecondInnings, endInnings, setBatsmen, swapStrike } from '@/lib/ac
 import { ballsToOversLabel, formatEventLabel, DISMISSAL_LABELS } from '@/lib/cricket';
 import ScoreCard from '@/components/ScoreCard';
 import BallByBall from '@/components/BallByBall';
+import FieldPositionModal from '@/components/admin/FieldPositionModal';
 import type { Innings, ScoringEvent, DismissalType, AdminUser, MatchStatus } from '@/types/database';
 import type { MatchPlayerWithName } from '@/lib/actions/queries-match';
 
@@ -14,6 +15,11 @@ interface RosterPlayer {
   id: string;
   name: string;
 }
+
+type PendingAction =
+  | { type: 'RUN'; runs: number }
+  | { type: 'EXTRA'; eventType: 'WIDE' | 'NO_BALL' }
+  | { type: 'WICKET'; dismissal: DismissalType };
 
 function subscribeOnlineStatus(callback: () => void) {
   window.addEventListener('online', callback);
@@ -70,6 +76,7 @@ export default function ScoringConsole({
   const online = useOnlineStatus();
   const [wicketModalOpen, setWicketModalOpen] = useState(false);
   const [correctingEvent, setCorrectingEvent] = useState<ScoringEvent | null>(null);
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [bowlerId, setBowlerId] = useState('');
   const [bowlerPromptOpen, setBowlerPromptOpen] = useState(false);
   const [matchStatus, setMatchStatus] = useState<MatchStatus>('LIVE');
@@ -210,54 +217,99 @@ export default function ScoringConsole({
       });
   }
 
-  async function recordRun(runs: number) {
-    guardedSubmit(async (clientEventId) => {
-      const { error: rpcError } = await supabase.rpc('record_ball_run', {
-        p_client_event_id: clientEventId,
-        p_match_id: matchId,
-        p_innings_id: innings.id,
-        p_runs: runs,
-        p_striker_id: innings.striker_id!,
-        p_non_striker_id: innings.non_striker_id,
-        p_bowler_id: bowlerId || null,
-        p_admin_user_id: admin.id,
-      });
-      if (rpcError) throw new Error(rpcError.message);
-    });
+  // Every scoring ball -- runs, extras, and wickets alike -- routes through
+  // the field-position diagram before it's actually submitted. The prompt*
+  // functions do the same pre-flight checks guardedSubmit would (online,
+  // striker, bowler) so the admin isn't sent through picking a field zone
+  // and commentary only to be blocked at the very end.
+  function precheckCanScore(): boolean {
+    if (!online) {
+      setError('You are offline. Reconnect before recording this ball to avoid losing it.');
+      return false;
+    }
+    if (!innings.striker_id) {
+      setError('Set the current batsmen before scoring.');
+      return false;
+    }
+    if (!bowlerId) {
+      setError('Select the bowler before scoring this ball.');
+      return false;
+    }
+    setError(null);
+    return true;
   }
 
-  async function recordExtra(type: 'WIDE' | 'NO_BALL') {
-    guardedSubmit(async (clientEventId) => {
-      const { error: rpcError } = await supabase.rpc('record_ball_event', {
-        p_client_event_id: clientEventId,
-        p_match_id: matchId,
-        p_innings_id: innings.id,
-        p_event_type: type,
-        p_striker_id: innings.striker_id,
-        p_non_striker_id: innings.non_striker_id,
-        p_bowler_id: bowlerId || null,
-        p_admin_user_id: admin.id,
-      });
-      if (rpcError) throw new Error(rpcError.message);
-    });
+  function promptRun(runs: number) {
+    if (!precheckCanScore()) return;
+    setPendingAction({ type: 'RUN', runs });
   }
 
-  async function recordWicket(dismissal: DismissalType) {
+  function promptExtra(eventType: 'WIDE' | 'NO_BALL') {
+    if (!precheckCanScore()) return;
+    setPendingAction({ type: 'EXTRA', eventType });
+  }
+
+  function promptWicket(dismissal: DismissalType) {
     setWicketModalOpen(false);
-    guardedSubmit(async (clientEventId) => {
-      const { error: rpcError } = await supabase.rpc('record_ball_event', {
-        p_client_event_id: clientEventId,
-        p_match_id: matchId,
-        p_innings_id: innings.id,
-        p_event_type: 'WICKET',
-        p_dismissal_type: dismissal,
-        p_striker_id: innings.striker_id,
-        p_non_striker_id: innings.non_striker_id,
-        p_bowler_id: bowlerId || null,
-        p_admin_user_id: admin.id,
+    if (!precheckCanScore()) return;
+    setPendingAction({ type: 'WICKET', dismissal });
+  }
+
+  function handleFieldPositionConfirm(zone: string | null, commentary: string | null) {
+    const action = pendingAction;
+    setPendingAction(null);
+    if (!action) return;
+
+    if (action.type === 'RUN') {
+      guardedSubmit(async (clientEventId) => {
+        const { error: rpcError } = await supabase.rpc('record_ball_run', {
+          p_client_event_id: clientEventId,
+          p_match_id: matchId,
+          p_innings_id: innings.id,
+          p_runs: action.runs,
+          p_striker_id: innings.striker_id!,
+          p_non_striker_id: innings.non_striker_id,
+          p_bowler_id: bowlerId || null,
+          p_admin_user_id: admin.id,
+          p_field_zone: zone,
+          p_commentary: commentary,
+        });
+        if (rpcError) throw new Error(rpcError.message);
       });
-      if (rpcError) throw new Error(rpcError.message);
-    });
+    } else if (action.type === 'EXTRA') {
+      guardedSubmit(async (clientEventId) => {
+        const { error: rpcError } = await supabase.rpc('record_ball_event', {
+          p_client_event_id: clientEventId,
+          p_match_id: matchId,
+          p_innings_id: innings.id,
+          p_event_type: action.eventType,
+          p_striker_id: innings.striker_id,
+          p_non_striker_id: innings.non_striker_id,
+          p_bowler_id: bowlerId || null,
+          p_admin_user_id: admin.id,
+          p_field_zone: zone,
+          p_commentary: commentary,
+        });
+        if (rpcError) throw new Error(rpcError.message);
+      });
+    } else {
+      guardedSubmit(async (clientEventId) => {
+        const { error: rpcError } = await supabase.rpc('record_ball_event', {
+          p_client_event_id: clientEventId,
+          p_match_id: matchId,
+          p_innings_id: innings.id,
+          p_event_type: 'WICKET',
+          p_dismissal_type: action.dismissal,
+          p_striker_id: innings.striker_id,
+          p_non_striker_id: innings.non_striker_id,
+          p_bowler_id: bowlerId || null,
+          p_admin_user_id: admin.id,
+          p_field_zone: zone,
+          p_commentary: commentary,
+        });
+        if (rpcError) throw new Error(rpcError.message);
+      });
+    }
   }
 
   async function submitCorrection(eventId: string, newRuns: number, reason: string) {
@@ -467,7 +519,7 @@ export default function ScoringConsole({
               <button
                 key={r}
                 disabled={submitting}
-                onClick={() => recordRun(r)}
+                onClick={() => promptRun(r)}
                 className={`rounded-xl py-5 text-2xl font-black shadow-sm active:scale-95 disabled:opacity-50 ${
                   r === 4 || r === 6 ? 'bg-navy-900 text-gold-400' : 'bg-white text-navy-900 ring-1 ring-slate-200'
                 }`}
@@ -486,14 +538,14 @@ export default function ScoringConsole({
             </button>
             <button
               disabled={submitting}
-              onClick={() => recordExtra('WIDE')}
+              onClick={() => promptExtra('WIDE')}
               className="rounded-xl bg-gold-500 py-5 text-sm font-black uppercase text-navy-900 shadow-sm active:scale-95 disabled:opacity-50"
             >
               Wide
             </button>
             <button
               disabled={submitting}
-              onClick={() => recordExtra('NO_BALL')}
+              onClick={() => promptExtra('NO_BALL')}
               className="rounded-xl bg-gold-500 py-5 text-sm font-black uppercase text-navy-900 shadow-sm active:scale-95 disabled:opacity-50"
             >
               No Ball
@@ -510,7 +562,23 @@ export default function ScoringConsole({
       )}
 
       {wicketModalOpen && (
-        <WicketModal onSelect={recordWicket} onClose={() => setWicketModalOpen(false)} />
+        <WicketModal onSelect={promptWicket} onClose={() => setWicketModalOpen(false)} />
+      )}
+
+      {pendingAction && (
+        <FieldPositionModal
+          title={
+            pendingAction.type === 'RUN'
+              ? `${pendingAction.runs} Run${pendingAction.runs === 1 ? '' : 's'}`
+              : pendingAction.type === 'EXTRA'
+              ? pendingAction.eventType === 'WIDE'
+                ? 'Wide'
+                : 'No Ball'
+              : `Wicket — ${DISMISSAL_LABELS[pendingAction.dismissal]}`
+          }
+          onConfirm={handleFieldPositionConfirm}
+          onCancel={() => setPendingAction(null)}
+        />
       )}
 
       {correctingEvent && (

@@ -169,6 +169,8 @@ export type ScoringEvent = {
   corrects_event_id: string | null;
   reason: string | null;
   admin_user_id: string | null;
+  field_zone: string | null;
+  commentary: string | null;
   created_at: string;
 }
 
@@ -424,6 +426,8 @@ export type Database = {
           p_non_striker_id?: string | null;
           p_bowler_id?: string | null;
           p_admin_user_id?: string | null;
+          p_field_zone?: string | null;
+          p_commentary?: string | null;
         };
         Returns: ScoringEvent;
       };
@@ -438,6 +442,8 @@ export type Database = {
           p_non_striker_id?: string | null;
           p_bowler_id?: string | null;
           p_admin_user_id?: string | null;
+          p_field_zone?: string | null;
+          p_commentary?: string | null;
         };
         Returns: ScoringEvent;
       };
