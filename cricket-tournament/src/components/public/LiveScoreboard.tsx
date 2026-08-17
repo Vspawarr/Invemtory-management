@@ -3,8 +3,11 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import ShareButtons from '@/components/public/ShareButtons';
+import ScoreCard from '@/components/ScoreCard';
+import BallByBall from '@/components/BallByBall';
 import { ballsToOversLabel, runRate, requiredRunRate, formatEventLabel, DISMISSAL_LABELS, STAGE_LABELS } from '@/lib/cricket';
 import type { LiveMatchSummary, ScoringEvent } from '@/types/database';
+import type { MatchPlayerWithName } from '@/lib/actions/queries-match';
 
 export default function LiveScoreboard({
   matchId,
@@ -12,6 +15,7 @@ export default function LiveScoreboard({
   initialMatch,
   initialEvents,
   playerNames,
+  initialMatchPlayers,
   siteUrl,
 }: {
   matchId: string;
@@ -19,10 +23,12 @@ export default function LiveScoreboard({
   initialMatch: LiveMatchSummary;
   initialEvents: ScoringEvent[];
   playerNames: Record<string, string>;
+  initialMatchPlayers: MatchPlayerWithName[];
   siteUrl: string;
 }) {
   const [match, setMatch] = useState(initialMatch);
   const [events, setEvents] = useState(initialEvents);
+  const [matchPlayers, setMatchPlayers] = useState(initialMatchPlayers);
   const [connected, setConnected] = useState(true);
   const [supabase] = useState(() => createClient());
 
@@ -43,8 +49,21 @@ export default function LiveScoreboard({
           .eq('innings_id', activeInningsId)
           .eq('is_undone', false)
           .order('sequence_number', { ascending: false })
-          .limit(12);
+          .limit(200);
         setEvents((ev ?? []).reverse());
+      }
+
+      const { data: mp } = await supabase
+        .from('match_players')
+        .select('*, player:players(name)')
+        .eq('match_id', matchId);
+      if (mp) {
+        setMatchPlayers(
+          (mp as unknown as (MatchPlayerWithName & { player: { name: string } | null })[]).map((row) => ({
+            ...row,
+            player_name: row.player?.name ?? 'Unknown',
+          }))
+        );
       }
     }
 
@@ -54,6 +73,7 @@ export default function LiveScoreboard({
       .on('postgres_changes', { event: '*', schema: 'public', table: 'innings', filter: `match_id=eq.${matchId}` }, refetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'matches', filter: `id=eq.${matchId}` }, refetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'match_results', filter: `match_id=eq.${matchId}` }, refetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'match_players', filter: `match_id=eq.${matchId}` }, refetch)
       .subscribe((status) => {
         setConnected(status === 'SUBSCRIBED');
       });
@@ -109,6 +129,20 @@ export default function LiveScoreboard({
   }
   const teamAScore = scoreForTeam(match.team_a_id);
   const teamBScore = scoreForTeam(match.team_b_id);
+
+  function scorecardFor(teamId: string | null) {
+    if (!teamId) return [];
+    return matchPlayers
+      .filter((mp) => mp.team_id === teamId)
+      .map((mp) => ({
+        id: mp.player_id,
+        name: mp.player_name,
+        runs: mp.runs_scored,
+        isStriker: mp.player_id === activeInnings.strikerId,
+        isNonStriker: mp.player_id === activeInnings.nonStrikerId,
+      }));
+  }
+  const isCompleted = match.status === 'COMPLETED';
 
   return (
     <div className="space-y-4">
@@ -200,7 +234,7 @@ export default function LiveScoreboard({
         <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Last Balls</p>
         <div className="flex flex-wrap gap-2">
           {events.length === 0 && <span className="text-xs text-slate-400">No balls bowled yet.</span>}
-          {events.map((e) => (
+          {events.slice(-12).map((e) => (
             <span
               key={e.id}
               className={`grid h-9 w-9 place-items-center rounded-full text-xs font-black ${
@@ -218,6 +252,23 @@ export default function LiveScoreboard({
             </span>
           ))}
         </div>
+      </div>
+
+      {/* Scorecard(s) -- both teams once the match is complete, just the batting team while live */}
+      {isCompleted ? (
+        <>
+          <ScoreCard teamName={match.team_a_name ?? 'Team A'} players={scorecardFor(match.team_a_id)} events={events} />
+          <ScoreCard teamName={match.team_b_name ?? 'Team B'} players={scorecardFor(match.team_b_id)} events={events} />
+        </>
+      ) : (
+        battingTeamName && (
+          <ScoreCard teamName={`${battingTeamName} — Batting`} players={scorecardFor(activeInnings.battingTeamId)} events={events} />
+        )
+      )}
+
+      <div>
+        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Full Ball-by-Ball</p>
+        <BallByBall events={events} playerNames={playerNames} />
       </div>
 
       <ShareButtons url={liveUrl} text={`Live: ${match.team_a_name} vs ${match.team_b_name}`} />

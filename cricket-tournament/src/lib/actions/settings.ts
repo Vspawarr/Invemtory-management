@@ -44,6 +44,8 @@ export async function updateTournamentSettings(
       extras_allowed: formData.get('extras_allowed') === 'on',
       banner_image_url: String(formData.get('banner_image_url') ?? '').trim() || null,
       gallery_urls: galleryRaw ? galleryRaw.split(',').map((u) => u.trim()).filter(Boolean) : [],
+      super_over_first_balls: Number(formData.get('super_over_first_balls') ?? 6),
+      super_over_repeat_balls: Number(formData.get('super_over_repeat_balls') ?? 3),
     })
     .eq('id', tournamentId);
 

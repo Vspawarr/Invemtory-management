@@ -79,6 +79,21 @@ export default function SettingsForm({
         />
       </FieldGroup>
 
+      <FieldGroup title="Super Over (Tied Matches)">
+        <Field
+          label="First Super Over — balls per side"
+          name="super_over_first_balls"
+          type="number"
+          defaultValue={tournament.super_over_first_balls}
+        />
+        <Field
+          label="Further Super Overs (if still tied) — balls per side"
+          name="super_over_repeat_balls"
+          type="number"
+          defaultValue={tournament.super_over_repeat_balls}
+        />
+      </FieldGroup>
+
       <FieldGroup title="Media">
         <Field label="Banner Image URL" name="banner_image_url" defaultValue={tournament.banner_image_url ?? ''} />
         <Field

@@ -4,6 +4,7 @@ import PublicFooter from '@/components/public/PublicFooter';
 import LiveScoreboard from '@/components/public/LiveScoreboard';
 import { getTournament, getMatchByShareCode } from '@/lib/queries';
 import { getRecentEvents, getTeamRoster } from '@/lib/queries-live';
+import { getMatchRosterWithNames } from '@/lib/actions/queries-match';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,10 +21,11 @@ export default async function LiveMatchPage({
   const activeInningsId =
     match.innings2_id && match.innings2_status === 'IN_PROGRESS' ? match.innings2_id : match.innings1_id;
 
-  const [events, rosterA, rosterB] = await Promise.all([
-    activeInningsId ? getRecentEvents(activeInningsId) : Promise.resolve([]),
+  const [events, rosterA, rosterB, matchPlayers] = await Promise.all([
+    activeInningsId ? getRecentEvents(activeInningsId, 200) : Promise.resolve([]),
     match.team_a_id ? getTeamRoster(match.team_a_id) : Promise.resolve(null),
     match.team_b_id ? getTeamRoster(match.team_b_id) : Promise.resolve(null),
+    getMatchRosterWithNames(match.match_id),
   ]);
 
   const playerNames: Record<string, string> = {};
@@ -46,6 +48,7 @@ export default async function LiveMatchPage({
           initialMatch={match}
           initialEvents={events}
           playerNames={playerNames}
+          initialMatchPlayers={matchPlayers}
           siteUrl={process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}
         />
       </main>

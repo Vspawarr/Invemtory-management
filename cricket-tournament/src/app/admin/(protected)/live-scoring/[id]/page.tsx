@@ -48,7 +48,7 @@ export default async function LiveScoringPage({ params }: { params: Promise<{ id
     .eq('innings_id', currentInnings.id)
     .eq('is_undone', false)
     .order('sequence_number', { ascending: false })
-    .limit(12);
+    .limit(200);
 
   const battingRoster = roster
     .filter((r) => r.team_id === currentInnings.batting_team_id)
@@ -63,6 +63,7 @@ export default async function LiveScoringPage({ params }: { params: Promise<{ id
         key={currentInnings.id}
         matchId={id}
         matchOvers={match.overs}
+        matchMaxBallsOverride={match.max_balls_override}
         teamAId={match.team_a_id}
         teamAName={match.team_a_name ?? 'Team A'}
         teamBId={match.team_b_id}
@@ -72,6 +73,7 @@ export default async function LiveScoringPage({ params }: { params: Promise<{ id
         bowlingRoster={bowlingRoster}
         admin={admin}
         initialEvents={(recentEvents ?? []).reverse()}
+        initialMatchPlayers={roster}
       />
     </div>
   );

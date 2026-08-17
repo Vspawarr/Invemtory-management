@@ -7,6 +7,8 @@ import type {
   PublicPlayer,
   PlayerLeaderboardRow,
   TeamLeaderboardRow,
+  PointsTableRow,
+  PlayerStatsRow,
   LiveMatchSummary,
   MatchStatus,
 } from '@/types/database';
@@ -78,5 +80,17 @@ export async function getPlayerLeaderboard(): Promise<PlayerLeaderboardRow[]> {
 export async function getTeamLeaderboard(): Promise<TeamLeaderboardRow[]> {
   const supabase = await createClient();
   const { data } = await supabase.from('v_team_leaderboard').select('*');
+  return data ?? [];
+}
+
+export async function getPointsTable(): Promise<PointsTableRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from('v_points_table').select('*');
+  return data ?? [];
+}
+
+export async function getPlayerStats(): Promise<PlayerStatsRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from('v_player_stats').select('*');
   return data ?? [];
 }

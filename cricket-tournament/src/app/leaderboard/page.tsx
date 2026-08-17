@@ -1,14 +1,15 @@
 import PublicHeader from '@/components/public/PublicHeader';
 import PublicFooter from '@/components/public/PublicFooter';
-import { getTournament, getPlayerLeaderboard, getTeamLeaderboard } from '@/lib/queries';
+import { getTournament, getPlayerLeaderboard, getTeamLeaderboard, getPointsTable } from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
 export default async function LeaderboardPage() {
-  const [tournament, players, teams] = await Promise.all([
+  const [tournament, players, teams, points] = await Promise.all([
     getTournament(),
     getPlayerLeaderboard(),
     getTeamLeaderboard(),
+    getPointsTable(),
   ]);
 
   return (
@@ -70,6 +71,44 @@ export default async function LeaderboardPage() {
           </div>
           {players.length === 0 && (
             <p className="mt-3 text-sm text-slate-500">No player statistics yet.</p>
+          )}
+        </section>
+
+        <section>
+          <h2 className="mb-3 text-lg font-extrabold uppercase text-navy-900">Points Table</h2>
+          <p className="mb-3 -mt-2 text-xs text-slate-500">League stage only. Ranked by points, then Net Run Rate.</p>
+          <div className="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-slate-100">
+            <table className="w-full min-w-[680px] text-sm">
+              <thead className="bg-navy-900 text-white">
+                <tr>
+                  <Th>#</Th>
+                  <Th>Team</Th>
+                  <Th align="right">M</Th>
+                  <Th align="right">W</Th>
+                  <Th align="right">L</Th>
+                  <Th align="right">T</Th>
+                  <Th align="right">Pts</Th>
+                  <Th align="right">NRR</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {points.map((p, i) => (
+                  <tr key={p.team_id} className="border-t border-slate-100">
+                    <Td>{i + 1}</Td>
+                    <Td className="font-semibold text-navy-900">{p.team_name}</Td>
+                    <Td align="right">{p.matches_played}</Td>
+                    <Td align="right">{p.wins}</Td>
+                    <Td align="right">{p.losses}</Td>
+                    <Td align="right">{p.ties}</Td>
+                    <Td align="right" className="font-bold">{p.points}</Td>
+                    <Td align="right">{p.net_run_rate > 0 ? '+' : ''}{p.net_run_rate.toFixed(3)}</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {points.length === 0 && (
+            <p className="mt-3 text-sm text-slate-500">No league matches completed yet.</p>
           )}
         </section>
 

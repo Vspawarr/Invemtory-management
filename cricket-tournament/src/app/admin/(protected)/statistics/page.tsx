@@ -1,11 +1,18 @@
-import { getPlayerLeaderboard, getTeamLeaderboard } from '@/lib/queries';
+import { getPlayerLeaderboard, getTeamLeaderboard, getPlayerStats } from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminStatisticsPage() {
-  const [players, teams] = await Promise.all([getPlayerLeaderboard(), getTeamLeaderboard()]);
+  const [players, teams, playerStats] = await Promise.all([
+    getPlayerLeaderboard(),
+    getTeamLeaderboard(),
+    getPlayerStats(),
+  ]);
   const topScorer = [...players].sort((a, b) => b.highest_score - a.highest_score)[0];
   const topWicketTaker = [...players].sort((a, b) => b.wickets_taken - a.wickets_taken)[0];
+  const mostSixes = [...playerStats].sort((a, b) => b.sixes - a.sixes)[0];
+  const mostFours = [...playerStats].sort((a, b) => b.fours - a.fours)[0];
+  const statsByPlayer = new Map(playerStats.map((p) => [p.player_id, p]));
 
   return (
     <div className="space-y-8">
@@ -14,13 +21,15 @@ export default async function AdminStatisticsPage() {
         <p className="text-sm text-slate-500">Detailed player and team performance.</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Highlight label="Highest Individual Score" value={topScorer ? `${topScorer.highest_score} — ${topScorer.name}` : '—'} />
         <Highlight label="Most Wickets" value={topWicketTaker ? `${topWicketTaker.wickets_taken} — ${topWicketTaker.name}` : '—'} />
+        <Highlight label="Most Sixes" value={mostSixes && mostSixes.sixes > 0 ? `${mostSixes.sixes} — ${mostSixes.name}` : '—'} />
+        <Highlight label="Most Fours" value={mostFours && mostFours.fours > 0 ? `${mostFours.fours} — ${mostFours.name}` : '—'} />
       </div>
 
       <div className="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-slate-100">
-        <table className="w-full min-w-[820px] text-sm">
+        <table className="w-full min-w-[940px] text-sm">
           <thead className="bg-navy-900 text-white">
             <tr>
               <th className="px-3 py-2 text-left text-xs font-bold uppercase">Player</th>
@@ -29,6 +38,8 @@ export default async function AdminStatisticsPage() {
               <th className="px-3 py-2 text-right text-xs font-bold uppercase">Runs</th>
               <th className="px-3 py-2 text-right text-xs font-bold uppercase">Average</th>
               <th className="px-3 py-2 text-right text-xs font-bold uppercase">Highest Score</th>
+              <th className="px-3 py-2 text-right text-xs font-bold uppercase">4s</th>
+              <th className="px-3 py-2 text-right text-xs font-bold uppercase">6s</th>
               <th className="px-3 py-2 text-right text-xs font-bold uppercase">Wickets</th>
               <th className="px-3 py-2 text-right text-xs font-bold uppercase">Wins</th>
               <th className="px-3 py-2 text-right text-xs font-bold uppercase">Losses</th>
@@ -43,6 +54,8 @@ export default async function AdminStatisticsPage() {
                 <td className="px-3 py-2 text-right font-bold">{p.runs_scored}</td>
                 <td className="px-3 py-2 text-right">{p.average_runs}</td>
                 <td className="px-3 py-2 text-right">{p.highest_score}</td>
+                <td className="px-3 py-2 text-right">{statsByPlayer.get(p.player_id)?.fours ?? 0}</td>
+                <td className="px-3 py-2 text-right">{statsByPlayer.get(p.player_id)?.sixes ?? 0}</td>
                 <td className="px-3 py-2 text-right">{p.wickets_taken}</td>
                 <td className="px-3 py-2 text-right">{p.wins}</td>
                 <td className="px-3 py-2 text-right">{p.losses}</td>

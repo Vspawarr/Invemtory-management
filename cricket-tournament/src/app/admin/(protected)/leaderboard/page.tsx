@@ -1,9 +1,13 @@
-import { getPlayerLeaderboard, getTeamLeaderboard } from '@/lib/queries';
+import { getPlayerLeaderboard, getTeamLeaderboard, getPointsTable } from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminLeaderboardPage() {
-  const [players, teams] = await Promise.all([getPlayerLeaderboard(), getTeamLeaderboard()]);
+  const [players, teams, points] = await Promise.all([
+    getPlayerLeaderboard(),
+    getTeamLeaderboard(),
+    getPointsTable(),
+  ]);
 
   return (
     <div className="space-y-8">
@@ -43,6 +47,38 @@ export default async function AdminLeaderboardPage() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div>
+        <p className="mb-2 text-sm font-bold text-navy-900">Points Table (League Stage)</p>
+        <div className="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-slate-100">
+          <table className="w-full min-w-[680px] text-sm">
+            <thead className="bg-navy-900 text-white">
+              <tr>
+                <th className="px-3 py-2 text-left text-xs font-bold uppercase">Team</th>
+                <th className="px-3 py-2 text-right text-xs font-bold uppercase">M</th>
+                <th className="px-3 py-2 text-right text-xs font-bold uppercase">W</th>
+                <th className="px-3 py-2 text-right text-xs font-bold uppercase">L</th>
+                <th className="px-3 py-2 text-right text-xs font-bold uppercase">T</th>
+                <th className="px-3 py-2 text-right text-xs font-bold uppercase">Pts</th>
+                <th className="px-3 py-2 text-right text-xs font-bold uppercase">NRR</th>
+              </tr>
+            </thead>
+            <tbody>
+              {points.map((p) => (
+                <tr key={p.team_id} className="border-t border-slate-100">
+                  <td className="px-3 py-2 font-semibold text-navy-900">{p.team_name}</td>
+                  <td className="px-3 py-2 text-right">{p.matches_played}</td>
+                  <td className="px-3 py-2 text-right">{p.wins}</td>
+                  <td className="px-3 py-2 text-right">{p.losses}</td>
+                  <td className="px-3 py-2 text-right">{p.ties}</td>
+                  <td className="px-3 py-2 text-right font-bold">{p.points}</td>
+                  <td className="px-3 py-2 text-right">{p.net_run_rate > 0 ? '+' : ''}{p.net_run_rate.toFixed(3)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-slate-100">

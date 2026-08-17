@@ -40,6 +40,8 @@ export type Tournament = {
   extras_allowed: boolean;
   banner_image_url: string | null;
   gallery_urls: string[];
+  super_over_first_balls: number;
+  super_over_repeat_balls: number;
   created_at: string;
   updated_at: string;
 }
@@ -124,6 +126,10 @@ export type Match = {
   share_code: string;
   next_match_id: string | null;
   next_match_slot: 1 | 2 | null;
+  parent_match_id: string | null;
+  is_super_over: boolean;
+  super_over_sequence: number | null;
+  max_balls_override: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -287,6 +293,39 @@ export type TeamLeaderboardRow = {
   net_run_differential: number;
 }
 
+export type PlayerStatsRow = {
+  player_id: string;
+  name: string;
+  village: string | null;
+  team_id: string | null;
+  team_name: string | null;
+  matches_played: number;
+  runs_scored: number;
+  wickets_taken: number;
+  highest_score: number;
+  fours: number;
+  sixes: number;
+  balls_faced: number;
+  average_runs: number;
+  strike_rate: number;
+}
+
+export type PointsTableRow = {
+  team_id: string;
+  team_name: string;
+  matches_played: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  no_results: number;
+  points: number;
+  runs_for: number;
+  balls_faced: number;
+  runs_against: number;
+  balls_bowled: number;
+  net_run_rate: number;
+}
+
 export type LiveMatchSummary = {
   match_id: string;
   share_code: string;
@@ -365,6 +404,8 @@ export type Database = {
       v_matches_public: View<PublicMatch>;
       v_player_leaderboard: View<PlayerLeaderboardRow>;
       v_team_leaderboard: View<TeamLeaderboardRow>;
+      v_points_table: View<PointsTableRow>;
+      v_player_stats: View<PlayerStatsRow>;
       v_live_match_summary: View<LiveMatchSummary>;
     };
     Functions: {
@@ -423,6 +464,10 @@ export type Database = {
           p_admin_user_id: string;
         };
         Returns: MatchResult;
+      };
+      start_super_over: {
+        Args: { p_tied_match_id: string; p_admin_user_id: string };
+        Returns: Match;
       };
     };
   };

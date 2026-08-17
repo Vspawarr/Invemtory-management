@@ -5,7 +5,10 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { startSecondInnings, endInnings, setBatsmen, swapStrike } from '@/lib/actions/matches';
 import { ballsToOversLabel, formatEventLabel, DISMISSAL_LABELS } from '@/lib/cricket';
-import type { Innings, ScoringEvent, DismissalType, AdminUser } from '@/types/database';
+import ScoreCard from '@/components/ScoreCard';
+import BallByBall from '@/components/BallByBall';
+import type { Innings, ScoringEvent, DismissalType, AdminUser, MatchStatus } from '@/types/database';
+import type { MatchPlayerWithName } from '@/lib/actions/queries-match';
 
 interface RosterPlayer {
   id: string;
@@ -32,6 +35,7 @@ function useOnlineStatus() {
 export default function ScoringConsole({
   matchId,
   matchOvers,
+  matchMaxBallsOverride,
   teamAId,
   teamAName,
   teamBName,
@@ -40,9 +44,11 @@ export default function ScoringConsole({
   bowlingRoster,
   admin,
   initialEvents,
+  initialMatchPlayers,
 }: {
   matchId: string;
   matchOvers: number;
+  matchMaxBallsOverride?: number | null;
   teamAId: string;
   teamAName: string;
   teamBId: string;
@@ -52,41 +58,124 @@ export default function ScoringConsole({
   bowlingRoster: RosterPlayer[];
   admin: AdminUser;
   initialEvents: ScoringEvent[];
+  initialMatchPlayers: MatchPlayerWithName[];
 }) {
   const router = useRouter();
   const [supabase] = useState(() => createClient());
   const [innings, setInnings] = useState(initialInnings);
   const [events, setEvents] = useState(initialEvents);
+  const [matchPlayers, setMatchPlayers] = useState(initialMatchPlayers);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const online = useOnlineStatus();
   const [wicketModalOpen, setWicketModalOpen] = useState(false);
   const [correctingEvent, setCorrectingEvent] = useState<ScoringEvent | null>(null);
   const [bowlerId, setBowlerId] = useState('');
+  const [bowlerPromptOpen, setBowlerPromptOpen] = useState(false);
+  const [matchStatus, setMatchStatus] = useState<MatchStatus>('LIVE');
+  const [resultSummary, setResultSummary] = useState<string | null>(null);
+  const [otherInningsTotal, setOtherInningsTotal] = useState<number | null>(null);
+  const [startingSuperOver, setStartingSuperOver] = useState(false);
   // Synchronous lock (refs update immediately, unlike state) so a second tap
   // arriving before React re-renders can't slip past the `submitting` check.
   const submitLockRef = useRef(false);
+  // Tracks the last-seen balls_bowled so we can detect "an over just
+  // completed" after a refresh, to trigger the bowler-change prompt.
+  const prevBallsBowledRef = useRef(initialInnings.balls_bowled);
+
+  const maxBalls = matchMaxBallsOverride ?? matchOvers * 6;
 
   async function refreshInnings() {
     const { data } = await supabase.from('innings').select('*').eq('id', innings.id).single();
-    if (data) setInnings(data);
+    if (data) {
+      const overJustCompleted =
+        data.balls_bowled > prevBallsBowledRef.current &&
+        data.balls_bowled % 6 === 0 &&
+        data.balls_bowled < maxBalls &&
+        data.status !== 'COMPLETED';
+      prevBallsBowledRef.current = data.balls_bowled;
+      setInnings(data);
+      if (overJustCompleted) setBowlerPromptOpen(true);
+
+      if (data.innings_number === 2) {
+        const { data: firstInnings } = await supabase
+          .from('innings')
+          .select('total_runs')
+          .eq('match_id', matchId)
+          .eq('innings_number', 1)
+          .maybeSingle();
+        setOtherInningsTotal(firstInnings?.total_runs ?? null);
+      }
+    }
     const { data: ev } = await supabase
       .from('scoring_events')
       .select('*')
       .eq('innings_id', innings.id)
       .eq('is_undone', false)
       .order('sequence_number', { ascending: false })
-      .limit(12);
+      .limit(200);
     setEvents((ev ?? []).reverse());
+
+    const { data: mp } = await supabase
+      .from('match_players')
+      .select('*, player:players(name)')
+      .eq('match_id', matchId);
+    if (mp) {
+      setMatchPlayers(
+        (mp as unknown as (MatchPlayerWithName & { player: { name: string } | null })[]).map((row) => ({
+          ...row,
+          player_name: row.player?.name ?? 'Unknown',
+        }))
+      );
+    }
+
+    const { data: m } = await supabase.from('matches').select('status').eq('id', matchId).maybeSingle();
+    if (m) setMatchStatus(m.status);
+    const { data: mr } = await supabase
+      .from('match_results')
+      .select('summary')
+      .eq('match_id', matchId)
+      .maybeSingle();
+    setResultSummary(mr?.summary ?? null);
+  }
+
+  async function handleStartSuperOver() {
+    setStartingSuperOver(true);
+    setError(null);
+    try {
+      const { data, error: rpcError } = await supabase.rpc('start_super_over', {
+        p_tied_match_id: matchId,
+        p_admin_user_id: admin.id,
+      });
+      if (rpcError) throw new Error(rpcError.message);
+      if (data) router.push(`/admin/live-scoring/${data.id}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to start Super Over.');
+      setStartingSuperOver(false);
+    }
   }
 
   const battingTeamName = innings.batting_team_id === teamAId ? teamAName : teamBName;
   const bowlingTeamName = innings.batting_team_id === teamAId ? teamBName : teamAName;
   const oversLabel = ballsToOversLabel(innings.balls_bowled);
-  const maxBalls = matchOvers * 6;
   const inningsOver = innings.balls_bowled >= maxBalls || innings.status === 'COMPLETED';
+  const isTiedAwaitingSuperOver =
+    innings.innings_number === 2 &&
+    innings.status === 'COMPLETED' &&
+    matchStatus !== 'COMPLETED' &&
+    otherInningsTotal !== null &&
+    innings.total_runs === otherInningsTotal;
   const strikerName = battingRoster.find((p) => p.id === innings.striker_id)?.name;
   const nonStrikerName = battingRoster.find((p) => p.id === innings.non_striker_id)?.name;
+
+  const scorecardPlayers = battingRoster.map((p) => ({
+    id: p.id,
+    name: p.name,
+    runs: matchPlayers.find((mp) => mp.player_id === p.id)?.runs_scored ?? 0,
+    isStriker: p.id === innings.striker_id,
+    isNonStriker: p.id === innings.non_striker_id,
+  }));
+  const playerNames = Object.fromEntries(matchPlayers.map((mp) => [mp.player_id, mp.player_name]));
 
   // Guards against duplicate taps: a synchronous ref lock blocks a second tap
   // that arrives before React re-renders with submitting=true, and disables
@@ -323,6 +412,7 @@ export default function ScoringConsole({
         <div className="flex flex-wrap gap-1.5">
           {events
             .filter((e) => e.event_type !== 'CORRECTION')
+            .slice(-12)
             .map((e) => (
               <button
                 key={e.id}
@@ -342,12 +432,24 @@ export default function ScoringConsole({
         <p className="mt-1 text-[11px] text-slate-400">Tap a ball above to correct a scoring mistake.</p>
       </div>
 
+      <ScoreCard teamName={`${battingTeamName} — Batting`} players={scorecardPlayers} events={events} />
+
+      <div>
+        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Full Ball-by-Ball</p>
+        <BallByBall events={events} playerNames={playerNames} />
+      </div>
+
       {inningsOver ? (
         <InningsControls
           matchId={matchId}
           innings={innings}
           bowlingRoster={bowlingRoster}
           onEnded={() => router.refresh()}
+          matchStatus={matchStatus}
+          resultSummary={resultSummary}
+          isTiedAwaitingSuperOver={isTiedAwaitingSuperOver}
+          onStartSuperOver={handleStartSuperOver}
+          startingSuperOver={startingSuperOver}
         />
       ) : (
         <>
@@ -410,6 +512,17 @@ export default function ScoringConsole({
           onClose={() => setCorrectingEvent(null)}
         />
       )}
+
+      {bowlerPromptOpen && (
+        <BowlerPromptModal
+          bowlingRoster={bowlingRoster}
+          onSelect={(id) => {
+            setBowlerId(id);
+            setBowlerPromptOpen(false);
+          }}
+          onSkip={() => setBowlerPromptOpen(false)}
+        />
+      )}
     </div>
   );
 
@@ -450,6 +563,39 @@ function WicketModal({
         </div>
         <button onClick={onClose} className="mt-3 w-full rounded-lg py-2 text-xs font-bold text-slate-500">
           Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function BowlerPromptModal({
+  bowlingRoster,
+  onSelect,
+  onSkip,
+}: {
+  bowlingRoster: RosterPlayer[];
+  onSelect: (playerId: string) => void;
+  onSkip: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center">
+      <div className="w-full max-w-sm rounded-t-2xl bg-white p-4 sm:rounded-2xl">
+        <p className="mb-1 text-center text-sm font-black uppercase text-navy-900">Over Complete</p>
+        <p className="mb-3 text-center text-xs text-slate-500">Who&apos;s bowling the next over?</p>
+        <div className="grid grid-cols-2 gap-2">
+          {bowlingRoster.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => onSelect(p.id)}
+              className="rounded-lg bg-slate-100 py-3 text-sm font-bold text-navy-900 hover:bg-gold-500/20"
+            >
+              {p.name}
+            </button>
+          ))}
+        </div>
+        <button onClick={onSkip} className="mt-3 w-full rounded-lg py-2 text-xs font-bold text-slate-500">
+          Skip for now
         </button>
       </div>
     </div>
@@ -513,11 +659,21 @@ function InningsControls({
   innings,
   bowlingRoster,
   onEnded,
+  matchStatus,
+  resultSummary,
+  isTiedAwaitingSuperOver,
+  onStartSuperOver,
+  startingSuperOver,
 }: {
   matchId: string;
   innings: Innings;
   bowlingRoster: RosterPlayer[];
   onEnded: () => void;
+  matchStatus: MatchStatus;
+  resultSummary: string | null;
+  isTiedAwaitingSuperOver: boolean;
+  onStartSuperOver: () => void;
+  startingSuperOver: boolean;
 }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -562,6 +718,33 @@ function InningsControls({
           className="w-full rounded-xl bg-navy-900 py-3 text-sm font-black uppercase text-white disabled:opacity-50"
         >
           Start 2nd Innings
+        </button>
+      </div>
+    );
+  }
+
+  if (matchStatus === 'COMPLETED') {
+    return (
+      <div className="rounded-xl bg-emerald-50 p-4 text-center shadow-sm">
+        <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Match Complete</p>
+        <p className="mt-1 text-lg font-black text-emerald-800">{resultSummary ?? 'Result recorded'}</p>
+      </div>
+    );
+  }
+
+  if (isTiedAwaitingSuperOver) {
+    return (
+      <div className="rounded-xl border-2 border-gold-500 bg-gold-300/10 p-4 text-center shadow-sm">
+        <p className="text-lg font-black uppercase text-navy-900">Match Tied!</p>
+        <p className="mt-1 mb-3 text-xs text-slate-600">
+          Scores are level after both innings. Start a Super Over to decide the winner.
+        </p>
+        <button
+          disabled={startingSuperOver}
+          onClick={onStartSuperOver}
+          className="w-full rounded-xl bg-red-600 py-3 text-sm font-black uppercase text-white disabled:opacity-50"
+        >
+          {startingSuperOver ? 'Starting…' : '⚡ Start Super Over'}
         </button>
       </div>
     );
