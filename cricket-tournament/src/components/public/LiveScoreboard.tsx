@@ -205,7 +205,7 @@ export default function LiveScoreboard({
         {match.status === 'COMPLETED' && (
           <div className="border-t border-white/10 px-4 py-3 text-center">
             <p className="text-sm font-black uppercase text-gold-400">Result</p>
-            <p className="text-base font-bold">{match.result_summary ?? 'Match completed'}</p>
+            <p className="text-base font-bold">{match.result_summary || 'Match completed'}</p>
           </div>
         )}
       </div>
