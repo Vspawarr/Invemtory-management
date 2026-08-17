@@ -1,0 +1,212 @@
+-- ============================================================================
+-- Migration 0012: Field-position + commentary tagging
+--
+-- Adds two optional columns to the ball-by-ball log so every scoring event
+-- can carry where the ball went (a wagon-wheel zone) and a short commentary
+-- line. Both are nullable and additive to record_ball_run/record_ball_event
+-- -- existing callers that don't pass them keep working unchanged.
+-- ============================================================================
+
+alter table scoring_events add column field_zone text;
+alter table scoring_events add column commentary text;
+
+create or replace function record_ball_event(
+  p_client_event_id uuid,
+  p_match_id uuid,
+  p_innings_id uuid,
+  p_event_type text,
+  p_dismissal_type text default null,
+  p_striker_id uuid default null,
+  p_non_striker_id uuid default null,
+  p_bowler_id uuid default null,
+  p_admin_user_id uuid default null,
+  p_field_zone text default null,
+  p_commentary text default null
+)
+returns scoring_events
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_existing scoring_events;
+  v_tournament tournaments%rowtype;
+  v_innings innings%rowtype;
+  v_runs integer;
+  v_is_wicket boolean := false;
+  v_increments_ball boolean := true;
+  v_seq integer;
+  v_over integer;
+  v_ball integer;
+  v_new_balls integer;
+  v_over_completed boolean;
+  v_swap_strike boolean;
+  v_result scoring_events;
+begin
+  if not is_admin() then
+    raise exception 'Only tournament admins can record scoring events' using errcode = '42501';
+  end if;
+
+  select * into v_existing from scoring_events where client_event_id = p_client_event_id;
+  if found then
+    return v_existing;
+  end if;
+
+  select * into v_innings from innings where id = p_innings_id for update;
+  if not found then
+    raise exception 'Innings % not found', p_innings_id;
+  end if;
+  if v_innings.status = 'COMPLETED' then
+    raise exception 'Innings is already completed; cannot add more balls';
+  end if;
+
+  select * into v_tournament from tournaments where id = (select tournament_id from matches where id = p_match_id);
+
+  if p_event_type = 'WICKET' then
+    v_is_wicket := true;
+    v_runs := v_tournament.wicket_penalty;
+    v_increments_ball := true;
+    if p_dismissal_type is null then
+      raise exception 'dismissal_type is required for a WICKET event';
+    end if;
+  elsif p_event_type = 'WIDE' then
+    v_runs := v_tournament.wide_run_value;
+    v_increments_ball := false;
+  elsif p_event_type = 'NO_BALL' then
+    v_runs := v_tournament.no_ball_run_value;
+    v_increments_ball := false;
+  elsif p_event_type = 'RUN' then
+    raise exception 'Use record_ball_run() for RUN events (needs explicit run count)';
+  else
+    raise exception 'Unsupported event_type % for record_ball_event', p_event_type;
+  end if;
+
+  v_seq := coalesce((select max(sequence_number) from scoring_events where innings_id = p_innings_id), 0) + 1;
+  v_over := v_innings.balls_bowled / 6;
+  v_ball := (v_innings.balls_bowled % 6) + 1;
+
+  insert into scoring_events (
+    client_event_id, match_id, innings_id, sequence_number, over_number, ball_number,
+    event_type, runs, is_wicket, dismissal_type, striker_id, non_striker_id, bowler_id, admin_user_id,
+    field_zone, commentary
+  ) values (
+    p_client_event_id, p_match_id, p_innings_id, v_seq, v_over, v_ball,
+    p_event_type, v_runs, v_is_wicket, p_dismissal_type, p_striker_id, p_non_striker_id, p_bowler_id, p_admin_user_id,
+    p_field_zone, p_commentary
+  ) returning * into v_result;
+
+  v_new_balls := v_innings.balls_bowled + (case when v_increments_ball then 1 else 0 end);
+  v_over_completed := v_increments_ball and (v_new_balls % 6 = 0);
+  v_swap_strike := v_over_completed;
+
+  update innings set
+    total_runs = total_runs + v_runs,
+    wickets = wickets + (case when v_is_wicket then 1 else 0 end),
+    balls_bowled = v_new_balls,
+    striker_id = case when v_swap_strike then coalesce(p_non_striker_id, non_striker_id)
+                       else coalesce(p_striker_id, striker_id) end,
+    non_striker_id = case when v_swap_strike then coalesce(p_striker_id, striker_id)
+                           else coalesce(p_non_striker_id, non_striker_id) end,
+    bowler_id = coalesce(p_bowler_id, bowler_id)
+  where id = p_innings_id;
+
+  if v_is_wicket and p_bowler_id is not null then
+    update match_players set wickets_taken = wickets_taken + 1
+      where match_id = p_match_id and player_id = p_bowler_id;
+  end if;
+
+  perform check_and_auto_complete_match(p_innings_id, p_admin_user_id);
+
+  return v_result;
+end;
+$$;
+
+create or replace function record_ball_run(
+  p_client_event_id uuid,
+  p_match_id uuid,
+  p_innings_id uuid,
+  p_runs integer,
+  p_striker_id uuid,
+  p_non_striker_id uuid default null,
+  p_bowler_id uuid default null,
+  p_admin_user_id uuid default null,
+  p_field_zone text default null,
+  p_commentary text default null
+)
+returns scoring_events
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_existing scoring_events;
+  v_innings innings%rowtype;
+  v_seq integer;
+  v_over integer;
+  v_ball integer;
+  v_new_balls integer;
+  v_over_completed boolean;
+  v_swap_for_runs boolean;
+  v_swap_strike boolean;
+  v_result scoring_events;
+begin
+  if not is_admin() then
+    raise exception 'Only tournament admins can record scoring events' using errcode = '42501';
+  end if;
+  if p_runs < 0 or p_runs > 6 or p_runs = 5 then
+    raise exception 'Invalid run value: %', p_runs;
+  end if;
+
+  select * into v_existing from scoring_events where client_event_id = p_client_event_id;
+  if found then
+    return v_existing;
+  end if;
+
+  select * into v_innings from innings where id = p_innings_id for update;
+  if not found then
+    raise exception 'Innings % not found', p_innings_id;
+  end if;
+  if v_innings.status = 'COMPLETED' then
+    raise exception 'Innings is already completed; cannot add more balls';
+  end if;
+
+  v_seq := coalesce((select max(sequence_number) from scoring_events where innings_id = p_innings_id), 0) + 1;
+  v_over := v_innings.balls_bowled / 6;
+  v_ball := (v_innings.balls_bowled % 6) + 1;
+
+  insert into scoring_events (
+    client_event_id, match_id, innings_id, sequence_number, over_number, ball_number,
+    event_type, runs, is_wicket, striker_id, non_striker_id, bowler_id, admin_user_id,
+    field_zone, commentary
+  ) values (
+    p_client_event_id, p_match_id, p_innings_id, v_seq, v_over, v_ball,
+    'RUN', p_runs, false, p_striker_id, p_non_striker_id, p_bowler_id, p_admin_user_id,
+    p_field_zone, p_commentary
+  ) returning * into v_result;
+
+  v_new_balls := v_innings.balls_bowled + 1;
+  v_over_completed := (v_new_balls % 6 = 0);
+  v_swap_for_runs := (p_runs % 2) <> 0;
+  v_swap_strike := v_over_completed <> v_swap_for_runs;
+
+  update innings set
+    total_runs = total_runs + p_runs,
+    balls_bowled = v_new_balls,
+    striker_id = case when v_swap_strike then coalesce(p_non_striker_id, non_striker_id)
+                       else coalesce(p_striker_id, striker_id) end,
+    non_striker_id = case when v_swap_strike then coalesce(p_striker_id, striker_id)
+                           else coalesce(p_non_striker_id, non_striker_id) end,
+    bowler_id = coalesce(p_bowler_id, bowler_id)
+  where id = p_innings_id;
+
+  if p_striker_id is not null then
+    perform ensure_player_statistics_row(p_striker_id);
+    update match_players set runs_scored = runs_scored + p_runs
+      where match_id = p_match_id and player_id = p_striker_id;
+  end if;
+
+  perform check_and_auto_complete_match(p_innings_id, p_admin_user_id);
+
+  return v_result;
+end;
+$$;

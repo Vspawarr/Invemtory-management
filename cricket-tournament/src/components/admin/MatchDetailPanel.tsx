@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { AdminMatchRow } from '@/lib/actions/queries-admin';
 import type { MatchPlayerWithName } from '@/lib/actions/queries-match';
@@ -35,6 +35,40 @@ export default function MatchDetailPanel({
   const [winnerTeamId, setWinnerTeamId] = useState('');
   const [resultType, setResultType] = useState<ResultType>('WIN');
   const [summary, setSummary] = useState('');
+  const autoAddAttemptedRef = useRef(false);
+
+  // Players are added to a scheduled match's roster automatically as soon as
+  // both teams are known -- no manual "Add Both Teams' Players" click needed
+  // for the common case. The button below stays as a manual retry (e.g.
+  // after a blocked knockout player is resolved, or a team's roster changes).
+  useEffect(() => {
+    if (
+      autoAddAttemptedRef.current ||
+      match.status !== 'SCHEDULED' ||
+      !match.team_a_id ||
+      !match.team_b_id ||
+      roster.length > 0
+    ) {
+      return;
+    }
+    autoAddAttemptedRef.current = true;
+    startTransition(async () => {
+      try {
+        const result = await addMatchRoster(match.id);
+        if (result.blocked.length > 0) {
+          setRosterMessage(
+            result.blocked
+              .map((b) => `${b.name}: Player is not eligible for this knockout match. Maximum knockout matches already completed.`)
+              .join(' ')
+          );
+        }
+        router.refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Could not automatically add players to this match.');
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [match.id, match.status, match.team_a_id, match.team_b_id, roster.length]);
 
   function run(fn: () => Promise<void>) {
     setError(null);

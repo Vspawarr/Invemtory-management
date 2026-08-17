@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import type { Team, Tournament } from '@/types/database';
 import type { MatchFormState } from '@/lib/actions/matches';
 import { STAGE_LABELS } from '@/lib/cricket';
@@ -15,6 +15,8 @@ export default function MatchForm({
   action: (state: MatchFormState, formData: FormData) => Promise<MatchFormState>;
 }) {
   const [state, formAction, pending] = useActionState(action, null);
+  const [teamAId, setTeamAId] = useState('');
+  const [teamBId, setTeamBId] = useState('');
 
   return (
     <form action={formAction} className="space-y-4">
@@ -34,8 +36,20 @@ export default function MatchForm({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <TeamSelect name="team_a_id" label="Team A" teams={teams} />
-        <TeamSelect name="team_b_id" label="Team B" teams={teams} />
+        <TeamSelect
+          name="team_a_id"
+          label="Team A"
+          teams={teams.filter((t) => t.id !== teamBId)}
+          value={teamAId}
+          onChange={setTeamAId}
+        />
+        <TeamSelect
+          name="team_b_id"
+          label="Team B"
+          teams={teams.filter((t) => t.id !== teamAId)}
+          value={teamBId}
+          onChange={setTeamBId}
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -85,11 +99,28 @@ export default function MatchForm({
   );
 }
 
-function TeamSelect({ name, label, teams }: { name: string; label: string; teams: Team[] }) {
+function TeamSelect({
+  name,
+  label,
+  teams,
+  value,
+  onChange,
+}: {
+  name: string;
+  label: string;
+  teams: Team[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
   return (
     <div>
       <label className="mb-1 block text-xs font-bold uppercase text-slate-600">{label}</label>
-      <select name={name} className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm">
+      <select
+        name={name}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm"
+      >
         <option value="">— TBD —</option>
         {teams.map((t) => (
           <option key={t.id} value={t.id}>

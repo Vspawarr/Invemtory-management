@@ -193,6 +193,11 @@ export default function ScoringConsole({
       setError('Set the current batsmen before scoring.');
       return;
     }
+    if (!bowlerId) {
+      submitLockRef.current = false;
+      setError('Select the bowler before scoring this ball.');
+      return;
+    }
     setSubmitting(true);
     setError(null);
     const clientEventId = crypto.randomUUID();
@@ -387,9 +392,12 @@ export default function ScoringConsole({
         <select
           value={bowlerId}
           onChange={(e) => setBowlerId(e.target.value)}
-          className="mt-2 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs"
+          required
+          className={`mt-2 w-full rounded-lg border px-2 py-1.5 text-xs ${
+            bowlerId ? 'border-slate-300' : 'border-red-400 bg-red-50'
+          }`}
         >
-          <option value="">Bowler credit (optional)…</option>
+          <option value="">Select bowler (required)…</option>
           {bowlingRoster.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
