@@ -61,6 +61,7 @@ export type Player = {
   village: string | null;
   age: number | null;
   photo_url: string | null;
+  bowling_style: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;

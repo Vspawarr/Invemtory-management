@@ -22,7 +22,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
       ? supabase.from('teams').select('id, team_name, team_players(position, player:players(id, name))').eq('id', match.team_b_id).single()
       : Promise.resolve({ data: null }),
     getMatchRosterWithNames(id),
-    supabase.from('innings').select('id').eq('match_id', id).limit(1),
+    supabase.from('innings').select('id, innings_number, status').eq('match_id', id).order('innings_number', { ascending: false }),
   ]);
 
   function mapTeam(row: typeof teamAResult.data) {
@@ -65,6 +65,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
         teamB={mapTeam(teamBResult.data)}
         roster={roster}
         hasInnings={(inningsResult.data?.length ?? 0) > 0}
+        latestInningsStatus={inningsResult.data?.[0]?.status ?? null}
       />
     </div>
   );

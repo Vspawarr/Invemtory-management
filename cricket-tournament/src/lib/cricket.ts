@@ -28,6 +28,17 @@ export function maxBallsForOvers(overs: number): number {
   return overs * 6;
 }
 
+export const BOWLING_STYLES = [
+  'Right-arm Fast',
+  'Right-arm Medium-fast',
+  'Right-arm Medium',
+  'Right-arm Off-spin',
+  'Right-arm Leg-spin',
+  'Left-arm Fast',
+  'Left-arm Medium',
+  'Left-arm Spin',
+];
+
 export const DISMISSAL_LABELS: Record<string, string> = {
   BOWLED: 'Bowled',
   CAUGHT: 'Caught',

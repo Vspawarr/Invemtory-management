@@ -55,14 +55,17 @@ export default function LiveScoreboard({
 
       const { data: mp } = await supabase
         .from('match_players')
-        .select('*, player:players(name)')
+        .select('*, player:players(name, bowling_style)')
         .eq('match_id', matchId);
       if (mp) {
         setMatchPlayers(
-          (mp as unknown as (MatchPlayerWithName & { player: { name: string } | null })[]).map((row) => ({
-            ...row,
-            player_name: row.player?.name ?? 'Unknown',
-          }))
+          (mp as unknown as (MatchPlayerWithName & { player: { name: string; bowling_style: string | null } | null })[]).map(
+            (row) => ({
+              ...row,
+              player_name: row.player?.name ?? 'Unknown',
+              player_bowling_style: row.player?.bowling_style ?? null,
+            })
+          )
         );
       }
     }

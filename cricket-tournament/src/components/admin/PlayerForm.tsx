@@ -3,6 +3,7 @@
 import { useActionState } from 'react';
 import type { Player } from '@/types/database';
 import type { PlayerFormState } from '@/lib/actions/players';
+import { BOWLING_STYLES } from '@/lib/cricket';
 
 export default function PlayerForm({
   player,
@@ -27,6 +28,24 @@ export default function PlayerForm({
       <Field label="Village" name="village" defaultValue={player?.village ?? ''} />
       <Field label="Age (optional)" name="age" type="number" defaultValue={player?.age ?? ''} />
       <Field label="Photo URL (optional)" name="photo_url" defaultValue={player?.photo_url ?? ''} />
+
+      <div>
+        <label className="mb-1 block text-xs font-bold uppercase text-slate-600">
+          Bowling Style (optional)
+        </label>
+        <select
+          name="bowling_style"
+          defaultValue={player?.bowling_style ?? ''}
+          className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-navy-600 focus:outline-none"
+        >
+          <option value="">Not set / batsman only</option>
+          {BOWLING_STYLES.map((style) => (
+            <option key={style} value={style}>
+              {style}
+            </option>
+          ))}
+        </select>
+      </div>
 
       {state?.error && (
         <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">{state.error}</p>

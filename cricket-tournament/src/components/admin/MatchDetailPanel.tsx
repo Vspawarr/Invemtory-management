@@ -20,12 +20,14 @@ export default function MatchDetailPanel({
   teamB,
   roster,
   hasInnings,
+  latestInningsStatus,
 }: {
   match: AdminMatchRow;
   teamA: TeamRosterInfo | null;
   teamB: TeamRosterInfo | null;
   roster: MatchPlayerWithName[];
   hasInnings: boolean;
+  latestInningsStatus: 'IN_PROGRESS' | 'COMPLETED' | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -35,6 +37,7 @@ export default function MatchDetailPanel({
   const [winnerTeamId, setWinnerTeamId] = useState('');
   const [resultType, setResultType] = useState<ResultType>('WIN');
   const [summary, setSummary] = useState('');
+  const [manualOverrideOpen, setManualOverrideOpen] = useState(false);
   const autoAddAttemptedRef = useRef(false);
 
   // Players are added to a scheduled match's roster automatically as soon as
@@ -185,9 +188,13 @@ export default function MatchDetailPanel({
         </div>
       )}
 
-      {(match.status === 'LIVE' || match.status === 'SCHEDULED') && hasInnings && (
-        <div className="rounded-xl bg-white p-4 shadow-sm sm:p-6">
-          <p className="mb-3 text-sm font-bold text-navy-900">Complete Match</p>
+      {match.status === 'LIVE' && hasInnings && latestInningsStatus === 'COMPLETED' && (
+        <div className="rounded-xl border-2 border-gold-500 bg-white p-4 shadow-sm sm:p-6">
+          <p className="mb-1 text-sm font-bold text-navy-900">Complete Match</p>
+          <p className="mb-3 text-xs text-slate-500">
+            Both innings have finished but a result wasn&apos;t declared automatically (e.g. a tie, or an
+            unusual finish). Confirm the winner below.
+          </p>
           <label className="mb-1 block text-xs font-bold uppercase text-slate-600">Winner</label>
           <select
             value={winnerTeamId}
@@ -227,6 +234,72 @@ export default function MatchDetailPanel({
           >
             Confirm Result &amp; Complete Match
           </button>
+        </div>
+      )}
+
+      {match.status === 'LIVE' && hasInnings && latestInningsStatus !== 'COMPLETED' && (
+        <div>
+          {!manualOverrideOpen ? (
+            <button
+              onClick={() => setManualOverrideOpen(true)}
+              className="text-xs font-semibold text-slate-400 hover:text-slate-600 hover:underline"
+            >
+              Match abandoned or needs to be ended early?
+            </button>
+          ) : (
+            <div className="rounded-xl bg-white p-4 shadow-sm sm:p-6">
+              <p className="mb-1 text-sm font-bold text-navy-900">Manually End Match</p>
+              <p className="mb-3 text-xs text-slate-500">
+                Only use this to abandon the match early (e.g. rain). Otherwise the result is declared
+                automatically as soon as the target is reached or overs run out.
+              </p>
+              <label className="mb-1 block text-xs font-bold uppercase text-slate-600">Winner</label>
+              <select
+                value={winnerTeamId}
+                onChange={(e) => setWinnerTeamId(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm"
+              >
+                <option value="">— Select winner —</option>
+                {teamA && <option value={teamA.id}>{teamA.team_name}</option>}
+                {teamB && <option value={teamB.id}>{teamB.team_name}</option>}
+                <option value="">Tie / No Result</option>
+              </select>
+              <div className="mt-3 flex gap-2">
+                {(['WIN', 'TIE', 'NO_RESULT'] as ResultType[]).map((rt) => (
+                  <button
+                    key={rt}
+                    onClick={() => setResultType(rt)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-bold uppercase ${
+                      resultType === rt ? 'bg-navy-900 text-white' : 'bg-slate-100 text-slate-600'
+                    }`}
+                  >
+                    {rt.replace('_', ' ')}
+                  </button>
+                ))}
+              </div>
+              <input
+                value={summary}
+                onChange={(e) => setSummary(e.target.value)}
+                placeholder="Result summary, e.g. Team A abandoned, ASD won by default"
+                className="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm"
+              />
+              <button
+                disabled={pending}
+                onClick={() =>
+                  run(() => completeMatchAction(match.id, winnerTeamId || null, resultType, summary))
+                }
+                className="mt-3 w-full rounded-lg bg-emerald-600 py-3 text-sm font-black uppercase text-white disabled:opacity-50"
+              >
+                Confirm Result &amp; Complete Match
+              </button>
+              <button
+                onClick={() => setManualOverrideOpen(false)}
+                className="mt-2 w-full rounded-lg py-2 text-xs font-bold text-slate-500"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
       )}
 

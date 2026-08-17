@@ -33,6 +33,7 @@ export async function createPlayer(_prev: PlayerFormState, formData: FormData): 
   const ageRaw = String(formData.get('age') ?? '').trim();
   const age = ageRaw ? Number(ageRaw) : null;
   const photoUrl = String(formData.get('photo_url') ?? '').trim() || null;
+  const bowlingStyle = String(formData.get('bowling_style') ?? '').trim() || null;
 
   if (!name || !mobile) {
     return { error: 'Name and mobile number are required.' };
@@ -50,6 +51,7 @@ export async function createPlayer(_prev: PlayerFormState, formData: FormData): 
     village,
     age,
     photo_url: photoUrl,
+    bowling_style: bowlingStyle,
   });
 
   if (error) return { error: error.message };
@@ -70,6 +72,7 @@ export async function updatePlayer(
   const ageRaw = String(formData.get('age') ?? '').trim();
   const age = ageRaw ? Number(ageRaw) : null;
   const photoUrl = String(formData.get('photo_url') ?? '').trim() || null;
+  const bowlingStyle = String(formData.get('bowling_style') ?? '').trim() || null;
 
   if (!name || !mobile) {
     return { error: 'Name and mobile number are required.' };
@@ -81,7 +84,7 @@ export async function updatePlayer(
   const supabase = await createClient();
   const { error } = await supabase
     .from('players')
-    .update({ name, mobile, village, age, photo_url: photoUrl })
+    .update({ name, mobile, village, age, photo_url: photoUrl, bowling_style: bowlingStyle })
     .eq('id', playerId);
 
   if (error) return { error: error.message };

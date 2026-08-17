@@ -14,12 +14,19 @@ import type { MatchPlayerWithName } from '@/lib/actions/queries-match';
 interface RosterPlayer {
   id: string;
   name: string;
+  bowlingStyle?: string | null;
 }
 
 type PendingAction =
   | { type: 'RUN'; runs: number }
   | { type: 'EXTRA'; eventType: 'WIDE' | 'NO_BALL' }
   | { type: 'WICKET'; dismissal: DismissalType };
+
+// For these dismissal types the ball never reaches a fielder (it hits the
+// stumps, pad, or wicket directly), so a wagon-wheel "where did it go" tap
+// doesn't apply -- only CAUGHT and RUN_OUT (and the catch-all OTHER) involve
+// an actual field position.
+const NO_FIELD_ZONE_DISMISSALS: DismissalType[] = ['BOWLED', 'LBW', 'STUMPED', 'HIT_WICKET'];
 
 function subscribeOnlineStatus(callback: () => void) {
   window.addEventListener('online', callback);
@@ -125,14 +132,17 @@ export default function ScoringConsole({
 
     const { data: mp } = await supabase
       .from('match_players')
-      .select('*, player:players(name)')
+      .select('*, player:players(name, bowling_style)')
       .eq('match_id', matchId);
     if (mp) {
       setMatchPlayers(
-        (mp as unknown as (MatchPlayerWithName & { player: { name: string } | null })[]).map((row) => ({
-          ...row,
-          player_name: row.player?.name ?? 'Unknown',
-        }))
+        (mp as unknown as (MatchPlayerWithName & { player: { name: string; bowling_style: string | null } | null })[]).map(
+          (row) => ({
+            ...row,
+            player_name: row.player?.name ?? 'Unknown',
+            player_bowling_style: row.player?.bowling_style ?? null,
+          })
+        )
       );
     }
 
@@ -382,6 +392,12 @@ export default function ScoringConsole({
             Overs {oversLabel} / {matchOvers} · vs {bowlingTeamName}
           </p>
         </div>
+        {innings.innings_number === 2 && innings.target !== null && (
+          <p className="border-t border-white/10 px-4 py-2 text-center text-xs font-semibold text-gold-300">
+            Target: {innings.target} · {battingTeamName} need {Math.max(0, innings.target - innings.total_runs)} runs
+            from {Math.max(0, maxBalls - innings.balls_bowled)} balls
+          </p>
+        )}
       </div>
 
       {/* Current players */}
@@ -453,6 +469,7 @@ export default function ScoringConsole({
           {bowlingRoster.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
+              {p.bowlingStyle ? ` — ${p.bowlingStyle}` : ''}
             </option>
           ))}
         </select>
@@ -576,6 +593,9 @@ export default function ScoringConsole({
                 : 'No Ball'
               : `Wicket — ${DISMISSAL_LABELS[pendingAction.dismissal]}`
           }
+          showFieldZone={
+            pendingAction.type !== 'WICKET' || !NO_FIELD_ZONE_DISMISSALS.includes(pendingAction.dismissal)
+          }
           onConfirm={handleFieldPositionConfirm}
           onCancel={() => setPendingAction(null)}
         />
@@ -664,9 +684,10 @@ function BowlerPromptModal({
             <button
               key={p.id}
               onClick={() => onSelect(p.id)}
-              className="rounded-lg bg-slate-100 py-3 text-sm font-bold text-navy-900 hover:bg-gold-500/20"
+              className="rounded-lg bg-slate-100 py-3 text-center text-sm font-bold text-navy-900 hover:bg-gold-500/20"
             >
               {p.name}
+              {p.bowlingStyle && <span className="block text-[10px] font-semibold text-slate-500">{p.bowlingStyle}</span>}
             </button>
           ))}
         </div>

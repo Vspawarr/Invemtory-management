@@ -55,7 +55,7 @@ export default async function LiveScoringPage({ params }: { params: Promise<{ id
     .map((r) => ({ id: r.player_id, name: r.player_name }));
   const bowlingRoster = roster
     .filter((r) => r.team_id === currentInnings.bowling_team_id)
-    .map((r) => ({ id: r.player_id, name: r.player_name }));
+    .map((r) => ({ id: r.player_id, name: r.player_name, bowlingStyle: r.player_bowling_style }));
 
   return (
     <div className="mx-auto max-w-lg">
