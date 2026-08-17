@@ -1,12 +1,25 @@
-import { getPlayerLeaderboard, getTeamLeaderboard, getPlayerStats } from '@/lib/queries';
+import {
+  getPlayerLeaderboard,
+  getTeamLeaderboard,
+  getPlayerStats,
+  getPlayerMilestones,
+  getBestBowling,
+  getInningsRecords,
+  getMatchMargins,
+} from '@/lib/queries';
+import RecordsSection from '@/components/RecordsSection';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminStatisticsPage() {
-  const [players, teams, playerStats] = await Promise.all([
+  const [players, teams, playerStats, milestones, bestBowling, inningsRecords, matchMargins] = await Promise.all([
     getPlayerLeaderboard(),
     getTeamLeaderboard(),
     getPlayerStats(),
+    getPlayerMilestones(),
+    getBestBowling(),
+    getInningsRecords(),
+    getMatchMargins(),
   ]);
   const topScorer = [...players].sort((a, b) => b.highest_score - a.highest_score)[0];
   const topWicketTaker = [...players].sort((a, b) => b.wickets_taken - a.wickets_taken)[0];
@@ -32,6 +45,7 @@ export default async function AdminStatisticsPage() {
         <table className="w-full min-w-[940px] text-sm">
           <thead className="bg-navy-900 text-white">
             <tr>
+              <th className="px-3 py-2 text-left text-xs font-bold uppercase">#</th>
               <th className="px-3 py-2 text-left text-xs font-bold uppercase">Player</th>
               <th className="px-3 py-2 text-left text-xs font-bold uppercase">Team</th>
               <th className="px-3 py-2 text-right text-xs font-bold uppercase">Matches</th>
@@ -46,8 +60,9 @@ export default async function AdminStatisticsPage() {
             </tr>
           </thead>
           <tbody>
-            {players.map((p) => (
+            {players.map((p, i) => (
               <tr key={p.player_id} className="border-t border-slate-100">
+                <td className="px-3 py-2">{i + 1}</td>
                 <td className="px-3 py-2 font-semibold text-navy-900">{p.name}</td>
                 <td className="px-3 py-2">{p.team_name ?? '—'}</td>
                 <td className="px-3 py-2 text-right">{p.matches_played}</td>
@@ -91,6 +106,13 @@ export default async function AdminStatisticsPage() {
         </table>
         {teams.length === 0 && <p className="p-4 text-sm text-slate-500">No team statistics yet.</p>}
       </div>
+
+      <RecordsSection
+        milestones={milestones}
+        bestBowling={bestBowling}
+        inningsRecords={inningsRecords}
+        matchMargins={matchMargins}
+      />
     </div>
   );
 }

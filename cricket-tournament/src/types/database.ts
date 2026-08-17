@@ -328,6 +328,48 @@ export type PointsTableRow = {
   net_run_rate: number;
 }
 
+export type PlayerMilestoneRow = {
+  player_id: string;
+  name: string;
+  team_name: string | null;
+  fifties: number;
+  hundreds: number;
+}
+
+export type BestBowlingRow = {
+  player_id: string;
+  name: string;
+  team_name: string | null;
+  best_wickets: number;
+  opponent_team_name: string | null;
+  match_number: number;
+  match_date: string | null;
+}
+
+export type InningsRecordRow = {
+  match_id: string;
+  match_number: number;
+  match_date: string | null;
+  stage: MatchStage;
+  batting_team_name: string;
+  bowling_team_name: string;
+  total_runs: number;
+  wickets: number;
+  balls_bowled: number;
+}
+
+export type MatchMarginRow = {
+  match_id: string;
+  match_number: number;
+  match_date: string | null;
+  stage: MatchStage;
+  winner_team_name: string | null;
+  loser_team_name: string | null;
+  summary: string | null;
+  margin_runs: number | null;
+  margin_balls: number | null;
+}
+
 export type LiveMatchSummary = {
   match_id: string;
   share_code: string;
@@ -408,6 +450,10 @@ export type Database = {
       v_team_leaderboard: View<TeamLeaderboardRow>;
       v_points_table: View<PointsTableRow>;
       v_player_stats: View<PlayerStatsRow>;
+      v_player_milestones: View<PlayerMilestoneRow>;
+      v_best_bowling: View<BestBowlingRow>;
+      v_innings_records: View<InningsRecordRow>;
+      v_match_margins: View<MatchMarginRow>;
       v_live_match_summary: View<LiveMatchSummary>;
     };
     Functions: {

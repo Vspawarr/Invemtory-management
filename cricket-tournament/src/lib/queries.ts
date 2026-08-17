@@ -9,6 +9,10 @@ import type {
   TeamLeaderboardRow,
   PointsTableRow,
   PlayerStatsRow,
+  PlayerMilestoneRow,
+  BestBowlingRow,
+  InningsRecordRow,
+  MatchMarginRow,
   LiveMatchSummary,
   MatchStatus,
 } from '@/types/database';
@@ -92,5 +96,29 @@ export async function getPointsTable(): Promise<PointsTableRow[]> {
 export async function getPlayerStats(): Promise<PlayerStatsRow[]> {
   const supabase = await createClient();
   const { data } = await supabase.from('v_player_stats').select('*');
+  return data ?? [];
+}
+
+export async function getPlayerMilestones(): Promise<PlayerMilestoneRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from('v_player_milestones').select('*');
+  return data ?? [];
+}
+
+export async function getBestBowling(): Promise<BestBowlingRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from('v_best_bowling').select('*');
+  return data ?? [];
+}
+
+export async function getInningsRecords(): Promise<InningsRecordRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from('v_innings_records').select('*').limit(5);
+  return data ?? [];
+}
+
+export async function getMatchMargins(): Promise<MatchMarginRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from('v_match_margins').select('*');
   return data ?? [];
 }

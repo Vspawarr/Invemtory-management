@@ -1,16 +1,33 @@
 import PublicHeader from '@/components/public/PublicHeader';
 import PublicFooter from '@/components/public/PublicFooter';
-import { getTournament, getPlayerStats } from '@/lib/queries';
+import RecordsSection from '@/components/RecordsSection';
+import {
+  getTournament,
+  getPlayerStats,
+  getPlayerMilestones,
+  getBestBowling,
+  getInningsRecords,
+  getMatchMargins,
+} from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
 export default async function StatsPage() {
-  const [tournament, players] = await Promise.all([getTournament(), getPlayerStats()]);
+  const [tournament, players, milestones, bestBowling, inningsRecords, matchMargins] = await Promise.all([
+    getTournament(),
+    getPlayerStats(),
+    getPlayerMilestones(),
+    getBestBowling(),
+    getInningsRecords(),
+    getMatchMargins(),
+  ]);
 
   const byRuns = [...players].filter((p) => p.matches_played > 0).sort((a, b) => b.runs_scored - a.runs_scored);
   const byWickets = [...players].filter((p) => p.matches_played > 0).sort((a, b) => b.wickets_taken - a.wickets_taken);
-  const bySixes = [...players].sort((a, b) => b.sixes - a.sixes)[0];
-  const byFours = [...players].sort((a, b) => b.fours - a.fours)[0];
+  const bySixesAll = [...players].filter((p) => p.sixes > 0).sort((a, b) => b.sixes - a.sixes);
+  const byFoursAll = [...players].filter((p) => p.fours > 0).sort((a, b) => b.fours - a.fours);
+  const bySixes = bySixesAll[0];
+  const byFours = byFoursAll[0];
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -99,6 +116,69 @@ export default async function StatsPage() {
             <p className="mt-3 text-sm text-slate-500">No wickets credited to a bowler yet.</p>
           )}
         </section>
+
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <section>
+            <h2 className="mb-3 text-lg font-extrabold uppercase text-navy-900">Most Sixes</h2>
+            <div className="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-slate-100">
+              <table className="w-full min-w-[360px] text-sm">
+                <thead className="bg-navy-900 text-white">
+                  <tr>
+                    <Th>#</Th>
+                    <Th>Player</Th>
+                    <Th>Team</Th>
+                    <Th align="right">6s</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bySixesAll.map((p, i) => (
+                    <tr key={p.player_id} className="border-t border-slate-100">
+                      <Td>{i + 1}</Td>
+                      <Td className="font-semibold text-navy-900">{p.name}</Td>
+                      <Td>{p.team_name ?? '—'}</Td>
+                      <Td align="right" className="font-bold">{p.sixes}</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {bySixesAll.length === 0 && <p className="p-4 text-sm text-slate-500">No sixes hit yet.</p>}
+            </div>
+          </section>
+
+          <section>
+            <h2 className="mb-3 text-lg font-extrabold uppercase text-navy-900">Most Fours</h2>
+            <div className="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-slate-100">
+              <table className="w-full min-w-[360px] text-sm">
+                <thead className="bg-navy-900 text-white">
+                  <tr>
+                    <Th>#</Th>
+                    <Th>Player</Th>
+                    <Th>Team</Th>
+                    <Th align="right">4s</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {byFoursAll.map((p, i) => (
+                    <tr key={p.player_id} className="border-t border-slate-100">
+                      <Td>{i + 1}</Td>
+                      <Td className="font-semibold text-navy-900">{p.name}</Td>
+                      <Td>{p.team_name ?? '—'}</Td>
+                      <Td align="right" className="font-bold">{p.fours}</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {byFoursAll.length === 0 && <p className="p-4 text-sm text-slate-500">No fours hit yet.</p>}
+            </div>
+          </section>
+        </div>
+
+        <RecordsSection
+          milestones={milestones}
+          bestBowling={bestBowling}
+          inningsRecords={inningsRecords}
+          matchMargins={matchMargins}
+        />
       </main>
       <PublicFooter contactNumber={tournament?.contact_number} />
     </div>
