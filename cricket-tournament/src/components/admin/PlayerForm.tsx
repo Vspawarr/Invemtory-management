@@ -30,6 +30,27 @@ export default function PlayerForm({
       <Field label="Photo URL (optional)" name="photo_url" defaultValue={player?.photo_url ?? ''} />
 
       <div>
+        <label className="mb-1 block text-xs font-bold uppercase text-slate-600">Batting Style</label>
+        <div className="flex gap-2">
+          {(['RIGHT_HAND', 'LEFT_HAND'] as const).map((hand) => (
+            <label
+              key={hand}
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-slate-300 px-3 py-2.5 text-sm has-[:checked]:border-navy-600 has-[:checked]:bg-navy-50 has-[:checked]:font-bold"
+            >
+              <input
+                type="radio"
+                name="batting_style"
+                value={hand}
+                defaultChecked={(player?.batting_style ?? 'RIGHT_HAND') === hand}
+                className="accent-navy-900"
+              />
+              {hand === 'RIGHT_HAND' ? 'Right-hand Bat' : 'Left-hand Bat'}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div>
         <label className="mb-1 block text-xs font-bold uppercase text-slate-600">
           Bowling Style (optional)
         </label>

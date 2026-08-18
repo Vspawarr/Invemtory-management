@@ -15,11 +15,12 @@ interface RosterPlayer {
   id: string;
   name: string;
   bowlingStyle?: string | null;
+  battingStyle?: 'RIGHT_HAND' | 'LEFT_HAND' | null;
 }
 
 type PendingAction =
   | { type: 'RUN'; runs: number }
-  | { type: 'EXTRA'; eventType: 'WIDE' | 'NO_BALL' }
+  | { type: 'EXTRA'; eventType: 'WIDE' | 'NO_BALL'; batRuns?: number }
   | { type: 'WICKET'; dismissal: DismissalType };
 
 // For these dismissal types the ball never reaches a fielder (it hits the
@@ -82,6 +83,7 @@ export default function ScoringConsole({
   const [error, setError] = useState<string | null>(null);
   const online = useOnlineStatus();
   const [wicketModalOpen, setWicketModalOpen] = useState(false);
+  const [noBallModalOpen, setNoBallModalOpen] = useState(false);
   const [correctingEvent, setCorrectingEvent] = useState<ScoringEvent | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [bowlerId, setBowlerId] = useState('');
@@ -132,17 +134,20 @@ export default function ScoringConsole({
 
     const { data: mp } = await supabase
       .from('match_players')
-      .select('*, player:players(name, bowling_style)')
+      .select('*, player:players(name, bowling_style, batting_style)')
       .eq('match_id', matchId);
     if (mp) {
       setMatchPlayers(
-        (mp as unknown as (MatchPlayerWithName & { player: { name: string; bowling_style: string | null } | null })[]).map(
-          (row) => ({
-            ...row,
-            player_name: row.player?.name ?? 'Unknown',
-            player_bowling_style: row.player?.bowling_style ?? null,
-          })
-        )
+        (
+          mp as unknown as (MatchPlayerWithName & {
+            player: { name: string; bowling_style: string | null; batting_style: 'RIGHT_HAND' | 'LEFT_HAND' } | null;
+          })[]
+        ).map((row) => ({
+          ...row,
+          player_name: row.player?.name ?? 'Unknown',
+          player_bowling_style: row.player?.bowling_style ?? null,
+          player_batting_style: row.player?.batting_style ?? 'RIGHT_HAND',
+        }))
       );
     }
 
@@ -184,6 +189,7 @@ export default function ScoringConsole({
     innings.total_runs === otherInningsTotal;
   const strikerName = battingRoster.find((p) => p.id === innings.striker_id)?.name;
   const nonStrikerName = battingRoster.find((p) => p.id === innings.non_striker_id)?.name;
+  const strikerBattingStyle = battingRoster.find((p) => p.id === innings.striker_id)?.battingStyle;
 
   const scorecardPlayers = battingRoster.map((p) => ({
     id: p.id,
@@ -254,9 +260,15 @@ export default function ScoringConsole({
     setPendingAction({ type: 'RUN', runs });
   }
 
-  function promptExtra(eventType: 'WIDE' | 'NO_BALL') {
+  function promptExtra(eventType: 'WIDE') {
     if (!precheckCanScore()) return;
     setPendingAction({ type: 'EXTRA', eventType });
+  }
+
+  function promptNoBall(batRuns: number) {
+    setNoBallModalOpen(false);
+    if (!precheckCanScore()) return;
+    setPendingAction({ type: 'EXTRA', eventType: 'NO_BALL', batRuns });
   }
 
   function promptWicket(dismissal: DismissalType) {
@@ -299,6 +311,7 @@ export default function ScoringConsole({
           p_admin_user_id: admin.id,
           p_field_zone: zone,
           p_commentary: commentary,
+          p_bat_runs: action.eventType === 'NO_BALL' ? action.batRuns ?? 0 : null,
         });
         if (rpcError) throw new Error(rpcError.message);
       });
@@ -562,7 +575,7 @@ export default function ScoringConsole({
             </button>
             <button
               disabled={submitting}
-              onClick={() => promptExtra('NO_BALL')}
+              onClick={() => setNoBallModalOpen(true)}
               className="rounded-xl bg-gold-500 py-5 text-sm font-black uppercase text-navy-900 shadow-sm active:scale-95 disabled:opacity-50"
             >
               No Ball
@@ -590,15 +603,20 @@ export default function ScoringConsole({
               : pendingAction.type === 'EXTRA'
               ? pendingAction.eventType === 'WIDE'
                 ? 'Wide'
-                : 'No Ball'
+                : `No Ball${pendingAction.batRuns ? ` + ${pendingAction.batRuns}` : ''}`
               : `Wicket — ${DISMISSAL_LABELS[pendingAction.dismissal]}`
           }
           showFieldZone={
             pendingAction.type !== 'WICKET' || !NO_FIELD_ZONE_DISMISSALS.includes(pendingAction.dismissal)
           }
+          mirrored={strikerBattingStyle === 'LEFT_HAND'}
           onConfirm={handleFieldPositionConfirm}
           onCancel={() => setPendingAction(null)}
         />
+      )}
+
+      {noBallModalOpen && (
+        <NoBallModal onSelect={promptNoBall} onClose={() => setNoBallModalOpen(false)} />
       )}
 
       {correctingEvent && (
@@ -654,6 +672,35 @@ function WicketModal({
               className="rounded-lg bg-slate-100 py-3 text-sm font-bold text-navy-900 hover:bg-red-50"
             >
               {DISMISSAL_LABELS[d]}
+            </button>
+          ))}
+        </div>
+        <button onClick={onClose} className="mt-3 w-full rounded-lg py-2 text-xs font-bold text-slate-500">
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function NoBallModal({ onSelect, onClose }: { onSelect: (batRuns: number) => void; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center">
+      <div className="w-full max-w-sm rounded-t-2xl bg-white p-4 sm:rounded-2xl">
+        <p className="mb-1 text-center text-sm font-black uppercase text-navy-900">No Ball</p>
+        <p className="mb-3 text-center text-xs text-slate-500">
+          Runs off the bat, on top of the no-ball penalty
+        </p>
+        <div className="grid grid-cols-3 gap-2">
+          {[0, 1, 2, 3, 4, 6].map((r) => (
+            <button
+              key={r}
+              onClick={() => onSelect(r)}
+              className={`rounded-lg py-3 text-lg font-black ${
+                r === 4 || r === 6 ? 'bg-navy-900 text-gold-400' : 'bg-slate-100 text-navy-900'
+              }`}
+            >
+              {r}
             </button>
           ))}
         </div>

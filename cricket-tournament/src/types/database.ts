@@ -62,6 +62,7 @@ export type Player = {
   age: number | null;
   photo_url: string | null;
   bowling_style: string | null;
+  batting_style: 'RIGHT_HAND' | 'LEFT_HAND';
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -491,6 +492,7 @@ export type Database = {
           p_admin_user_id?: string | null;
           p_field_zone?: string | null;
           p_commentary?: string | null;
+          p_bat_runs?: number | null;
         };
         Returns: ScoringEvent;
       };

@@ -59,11 +59,17 @@ function wedgePath(cx: number, cy: number, rInner: number, rOuter: number, start
 export default function FieldPositionModal({
   title,
   showFieldZone = true,
+  mirrored = false,
   onConfirm,
   onCancel,
 }: {
   title: string;
   showFieldZone?: boolean;
+  // Set true for a left-handed batsman: their off/leg sides are the
+  // visual opposite of a right-hander's from this same behind-the-bowler
+  // viewpoint, so the wheel is mirrored left/right (top/bottom -- bowler's
+  // end vs keeper's end -- stays the same either way).
+  mirrored?: boolean;
   onConfirm: (zone: string | null, commentary: string | null) => void;
   onCancel: () => void;
 }) {
@@ -84,15 +90,23 @@ export default function FieldPositionModal({
 
         {showFieldZone ? (
           <>
-            <p className="mb-3 text-center text-xs text-slate-500">Tap where the ball went</p>
+            <p className="mb-3 text-center text-xs text-slate-500">
+              Tap where the ball went{mirrored ? ' (mirrored for left-hand bat)' : ''}
+            </p>
             <p className="text-center text-[10px] font-bold uppercase tracking-wide text-slate-400">
               ↑ Wicketkeeper&apos;s End
             </p>
             <svg viewBox="0 0 300 300" className="mx-auto w-full max-w-[280px] touch-manipulation select-none">
               <circle cx={cx} cy={cy} r={rOuter} className="fill-emerald-50 stroke-emerald-200" strokeWidth={1} />
               {SECTORS.map((sector, i) => {
-                const start = i * sectorWidth;
-                const end = start + sectorWidth;
+                const rawStart = i * sectorWidth;
+                const rawEnd = rawStart + sectorWidth;
+                // Mirroring reflects each wedge across the vertical (top/bottom)
+                // axis: angle -> 360 - angle. Swap start/end after reflecting so
+                // start stays numerically smaller, keeping wedgePath's sweep
+                // direction consistent.
+                const start = mirrored ? 360 - rawEnd : rawStart;
+                const end = mirrored ? 360 - rawStart : rawEnd;
                 const mid = start + sectorWidth / 2;
                 const innerLabelPos = polarToCartesian(cx, cy, (rCenter + rInner) / 2, mid);
                 const outerLabelPos = polarToCartesian(cx, cy, (rInner + rOuter) / 2, mid);

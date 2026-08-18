@@ -69,14 +69,22 @@ export async function getAdminTeam(id: string): Promise<AdminTeamRow | null> {
   return teams.find((t) => t.id === id) ?? null;
 }
 
+// A player can be rostered on up to MAX_TEAMS_PER_PLAYER teams at once (this
+// tournament reuses the same small player pool across multiple team
+// entries). excludeTeamId lets an already-full player still show up while
+// editing the very team that's using one of their slots.
+const MAX_TEAMS_PER_PLAYER = 2;
+
 export async function getAvailablePlayers(excludeTeamId?: string): Promise<Player[]> {
   const supabase = await createClient();
   const { data: assigned } = await supabase.from('team_players').select('player_id, team_id');
-  const assignedIds = new Set(
-    (assigned ?? []).filter((a) => a.team_id !== excludeTeamId).map((a) => a.player_id)
-  );
+  const teamCounts = new Map<string, number>();
+  for (const a of assigned ?? []) {
+    if (a.team_id === excludeTeamId) continue;
+    teamCounts.set(a.player_id, (teamCounts.get(a.player_id) ?? 0) + 1);
+  }
   const { data: players } = await supabase.from('players').select('*').eq('is_active', true).order('name');
-  return (players ?? []).filter((p) => !assignedIds.has(p.id));
+  return (players ?? []).filter((p) => (teamCounts.get(p.id) ?? 0) < MAX_TEAMS_PER_PLAYER);
 }
 
 export type AdminRegistrationRow = Registration & {
