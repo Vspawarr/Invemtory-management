@@ -28,6 +28,9 @@ alter table scoring_events add column bat_runs integer;
 
 -- Surface free_hit_active on the public live-match view too, so the
 -- viewer-facing scoreboard can show the same "Free Hit" banner as admin.
+-- The two new columns are appended at the end of the select list --
+-- CREATE OR REPLACE VIEW can only add columns after the existing ones, not
+-- insert or reorder them, or Postgres rejects it with error 42P16.
 create or replace view v_live_match_summary as
 select
   m.id as match_id,
@@ -54,7 +57,6 @@ select
   i1.status as innings1_status,
   i1.striker_id as innings1_striker_id,
   i1.non_striker_id as innings1_non_striker_id,
-  i1.free_hit_active as innings1_free_hit_active,
   i2.id as innings2_id,
   i2.innings_number as innings2_number,
   i2.batting_team_id as innings2_batting_team_id,
@@ -65,6 +67,7 @@ select
   i2.target as innings2_target,
   i2.striker_id as innings2_striker_id,
   i2.non_striker_id as innings2_non_striker_id,
+  i1.free_hit_active as innings1_free_hit_active,
   i2.free_hit_active as innings2_free_hit_active
 from matches m
 left join teams ta on ta.id = m.team_a_id
