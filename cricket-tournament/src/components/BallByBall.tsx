@@ -68,7 +68,7 @@ export default function BallByBall({
           <ul className="mt-1 space-y-0.5 text-[11px] text-slate-500">
             {balls.map((e) => (
               <li key={e.id}>
-                {e.over_number + 1}.{e.ball_number}{' '}
+                {e.over_number}.{e.ball_number}{' '}
                 {e.striker_id && playerNames[e.striker_id] ? `${playerNames[e.striker_id]}: ` : ''}
                 {e.is_wicket
                   ? `WICKET (${e.dismissal_type ? DISMISSAL_LABELS[e.dismissal_type] : 'out'})${

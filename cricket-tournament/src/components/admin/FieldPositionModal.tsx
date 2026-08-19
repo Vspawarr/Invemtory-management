@@ -36,6 +36,15 @@ const COMMENTARY_CHIPS = [
   'Zabardast shot!',
 ];
 
+export const WIDE_COMMENTARY_CHIPS = [
+  'Outside off, wide!',
+  'Down leg side, wide!',
+  'Bahut door, wide!',
+  'Sar ke upar se, wide!',
+  'Umpire ne wide de diya',
+  'Keeper ne aasani se rok liya',
+];
+
 function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
   const rad = ((angleDeg - 90) * Math.PI) / 180;
   return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
@@ -60,6 +69,7 @@ export default function FieldPositionModal({
   title,
   showFieldZone = true,
   mirrored = false,
+  commentaryChips = COMMENTARY_CHIPS,
   onConfirm,
   onCancel,
 }: {
@@ -70,6 +80,7 @@ export default function FieldPositionModal({
   // viewpoint, so the wheel is mirrored left/right (top/bottom -- bowler's
   // end vs keeper's end -- stays the same either way).
   mirrored?: boolean;
+  commentaryChips?: string[];
   onConfirm: (zone: string | null, commentary: string | null) => void;
   onCancel: () => void;
 }) {
@@ -152,7 +163,7 @@ export default function FieldPositionModal({
         <div className="mt-3">
           <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500">Quick Commentary</p>
           <div className="flex flex-wrap gap-1.5">
-            {COMMENTARY_CHIPS.map((chip) => (
+            {commentaryChips.map((chip) => (
               <button
                 key={chip}
                 type="button"

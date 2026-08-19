@@ -7,7 +7,7 @@ import { startSecondInnings, endInnings, setBatsmen, swapStrike } from '@/lib/ac
 import { ballsToOversLabel, formatEventLabel, DISMISSAL_LABELS } from '@/lib/cricket';
 import ScoreCard from '@/components/ScoreCard';
 import BallByBall from '@/components/BallByBall';
-import FieldPositionModal from '@/components/admin/FieldPositionModal';
+import FieldPositionModal, { WIDE_COMMENTARY_CHIPS } from '@/components/admin/FieldPositionModal';
 import type { Innings, ScoringEvent, DismissalType, AdminUser, MatchStatus } from '@/types/database';
 import type { MatchPlayerWithName } from '@/lib/actions/queries-match';
 
@@ -111,7 +111,17 @@ export default function ScoringConsole({
         data.status !== 'COMPLETED';
       prevBallsBowledRef.current = data.balls_bowled;
       setInnings(data);
-      if (overJustCompleted) setBowlerPromptOpen(true);
+      if (overJustCompleted) {
+        // A bowler can't bowl two overs in a row -- if only one other
+        // bowler is available (true for this tournament's 2-player teams),
+        // just assign them automatically instead of prompting.
+        const eligible = bowlingRoster.filter((p) => p.id !== bowlerId);
+        if (eligible.length === 1) {
+          setBowlerId(eligible[0].id);
+        } else {
+          setBowlerPromptOpen(true);
+        }
+      }
 
       if (data.innings_number === 2) {
         const { data: firstInnings } = await supabase
@@ -617,7 +627,12 @@ export default function ScoringConsole({
               : `Wicket — ${DISMISSAL_LABELS[pendingAction.dismissal]}`
           }
           showFieldZone={
-            pendingAction.type !== 'WICKET' || !NO_FIELD_ZONE_DISMISSALS.includes(pendingAction.dismissal)
+            pendingAction.type === 'RUN' ||
+            (pendingAction.type === 'EXTRA' && pendingAction.eventType === 'NO_BALL') ||
+            (pendingAction.type === 'WICKET' && !NO_FIELD_ZONE_DISMISSALS.includes(pendingAction.dismissal))
+          }
+          commentaryChips={
+            pendingAction.type === 'EXTRA' && pendingAction.eventType === 'WIDE' ? WIDE_COMMENTARY_CHIPS : undefined
           }
           mirrored={strikerBattingStyle === 'LEFT_HAND'}
           onConfirm={handleFieldPositionConfirm}
@@ -639,7 +654,7 @@ export default function ScoringConsole({
 
       {bowlerPromptOpen && (
         <BowlerPromptModal
-          bowlingRoster={bowlingRoster}
+          bowlingRoster={bowlingRoster.filter((p) => p.id !== bowlerId)}
           onSelect={(id) => {
             setBowlerId(id);
             setBowlerPromptOpen(false);
