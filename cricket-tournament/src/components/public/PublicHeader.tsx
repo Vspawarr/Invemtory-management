@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import InstallAppButton from '@/components/InstallAppButton';
 
 const LINKS = [
   { href: '/', label: 'Home' },
@@ -31,6 +32,7 @@ export default function PublicHeader() {
             </Link>
           ))}
         </nav>
+        <InstallAppButton className="shrink-0 rounded-full bg-gold-500 px-3 py-1.5 text-xs font-bold text-navy-900 active:scale-95" />
       </div>
       <nav className="flex items-center gap-1 overflow-x-auto border-t border-white/10 px-2 py-1.5 text-xs font-semibold sm:hidden">
         {LINKS.map((l) => (

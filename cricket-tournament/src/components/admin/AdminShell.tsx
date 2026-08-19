@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminNav from './AdminNav';
+import InstallAppButton from '@/components/InstallAppButton';
 import { createClient } from '@/lib/supabase/client';
 import type { AdminUser } from '@/types/database';
 
@@ -50,6 +51,7 @@ export default function AdminShell({
                 ✕
               </button>
             </div>
+            <InstallAppButton className="mb-3 w-full rounded-lg bg-gold-500 py-2 text-xs font-bold uppercase text-navy-900" />
             <AdminNav />
           </div>
           <div className="flex-1 bg-black/50" onClick={() => setOpen(false)} />
@@ -62,6 +64,7 @@ export default function AdminShell({
             <p className="text-sm font-bold text-white">{admin.name}</p>
             <p className="truncate text-xs text-white/50">{admin.email}</p>
           </div>
+          <InstallAppButton className="mb-4 w-full rounded-lg bg-gold-500 py-2 text-xs font-bold uppercase text-navy-900" />
           <div className="flex-1 space-y-1 overflow-y-auto">
             <AdminNav />
           </div>
