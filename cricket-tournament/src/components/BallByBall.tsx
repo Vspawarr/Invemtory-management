@@ -50,6 +50,7 @@ export default function BallByBall({
             {balls.map((e) => (
               <span
                 key={e.id}
+                title={e.is_free_hit ? 'Free Hit' : undefined}
                 className={`grid h-7 min-w-7 place-items-center rounded-full px-1.5 text-[11px] font-black ${
                   e.is_wicket
                     ? 'bg-red-600 text-white'
@@ -58,7 +59,7 @@ export default function BallByBall({
                     : e.runs >= 4
                     ? 'bg-navy-900 text-gold-400'
                     : 'bg-slate-200 text-navy-900'
-                }`}
+                } ${e.is_free_hit ? 'ring-2 ring-offset-1 ring-gold-500' : ''}`}
               >
                 {formatEventLabel(e)}
               </span>
@@ -70,7 +71,9 @@ export default function BallByBall({
                 {e.over_number + 1}.{e.ball_number}{' '}
                 {e.striker_id && playerNames[e.striker_id] ? `${playerNames[e.striker_id]}: ` : ''}
                 {e.is_wicket
-                  ? `WICKET (${e.dismissal_type ? DISMISSAL_LABELS[e.dismissal_type] : 'out'}), -2 runs`
+                  ? `WICKET (${e.dismissal_type ? DISMISSAL_LABELS[e.dismissal_type] : 'out'})${
+                      e.runs === 0 ? ', no run penalty (Free Hit)' : `, ${e.runs} runs`
+                    }`
                   : e.event_type === 'WIDE'
                   ? `Wide, +${e.runs}`
                   : e.event_type === 'NO_BALL'
@@ -78,6 +81,7 @@ export default function BallByBall({
                   : e.event_type === 'CORRECTION'
                   ? `Correction: ${e.runs >= 0 ? '+' : ''}${e.runs}${e.reason ? ` (${e.reason})` : ''}`
                   : `${e.runs} run${e.runs === 1 ? '' : 's'}`}
+                {e.is_free_hit && !e.is_wicket ? ' · Free Hit' : ''}
                 {e.field_zone ? ` · ${e.field_zone}` : ''}
                 {e.commentary ? ` — "${e.commentary}"` : ''}
               </li>

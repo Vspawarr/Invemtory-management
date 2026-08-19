@@ -99,6 +99,7 @@ export default function LiveScoreboard({
         strikerId: match.innings2_striker_id,
         nonStrikerId: match.innings2_non_striker_id,
         target: match.innings2_target,
+        freeHitActive: match.innings2_free_hit_active ?? false,
       }
     : {
         runs: match.innings1_runs ?? 0,
@@ -108,10 +109,10 @@ export default function LiveScoreboard({
         strikerId: match.innings1_striker_id,
         nonStrikerId: match.innings1_non_striker_id,
         target: null as number | null,
+        freeHitActive: match.innings1_free_hit_active ?? false,
       };
 
   const battingTeamName = activeInnings.battingTeamId === match.team_a_id ? match.team_a_name : match.team_b_name;
-  const bowlingTeamName = activeInnings.battingTeamId === match.team_a_id ? match.team_b_name : match.team_a_name;
   const oversLabel = ballsToOversLabel(activeInnings.balls);
   const crr = runRate(activeInnings.runs, activeInnings.balls);
   const ballsRemaining = match.overs * 6 - activeInnings.balls;
@@ -202,9 +203,15 @@ export default function LiveScoreboard({
           </div>
         )}
 
+        {activeInnings.freeHitActive && match.status === 'LIVE' && (
+          <p className="border-t border-white/10 bg-gold-500 px-4 py-2 text-center text-xs font-black uppercase tracking-wide text-navy-900">
+            ⚡ Free Hit
+          </p>
+        )}
+
         {activeInnings.target && match.status === 'LIVE' && (
           <p className="border-t border-white/10 px-4 py-2 text-center text-xs font-semibold text-gold-300">
-            Target: {activeInnings.target} · {bowlingTeamName} need {Math.max(0, (activeInnings.target ?? 0) - activeInnings.runs)} runs from {ballsRemaining} balls
+            Target: {activeInnings.target} · {battingTeamName} need {Math.max(0, (activeInnings.target ?? 0) - activeInnings.runs)} runs from {ballsRemaining} balls
           </p>
         )}
 

@@ -150,6 +150,7 @@ export type Innings = {
   striker_id: string | null;
   non_striker_id: string | null;
   bowler_id: string | null;
+  free_hit_active: boolean;
 }
 
 export type ScoringEvent = {
@@ -173,6 +174,8 @@ export type ScoringEvent = {
   admin_user_id: string | null;
   field_zone: string | null;
   commentary: string | null;
+  is_free_hit: boolean;
+  bat_runs: number | null;
   created_at: string;
 }
 
@@ -397,6 +400,7 @@ export type LiveMatchSummary = {
   innings1_status: InningsStatus | null;
   innings1_striker_id: string | null;
   innings1_non_striker_id: string | null;
+  innings1_free_hit_active: boolean | null;
   innings2_id: string | null;
   innings2_number: number | null;
   innings2_batting_team_id: string | null;
@@ -407,6 +411,7 @@ export type LiveMatchSummary = {
   innings2_target: number | null;
   innings2_striker_id: string | null;
   innings2_non_striker_id: string | null;
+  innings2_free_hit_active: boolean | null;
 }
 
 // Helpers to satisfy @supabase/postgrest-js's GenericTable / GenericView /

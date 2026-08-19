@@ -405,6 +405,11 @@ export default function ScoringConsole({
             Overs {oversLabel} / {matchOvers} · vs {bowlingTeamName}
           </p>
         </div>
+        {innings.free_hit_active && (
+          <p className="border-t border-white/10 bg-gold-500 px-4 py-2 text-center text-xs font-black uppercase tracking-wide text-navy-900">
+            ⚡ Free Hit — no run penalty if a wicket falls
+          </p>
+        )}
         {innings.innings_number === 2 && innings.target !== null && (
           <p className="border-t border-white/10 px-4 py-2 text-center text-xs font-semibold text-gold-300">
             Target: {innings.target} · {battingTeamName} need {Math.max(0, innings.target - innings.total_runs)} runs
@@ -492,7 +497,8 @@ export default function ScoringConsole({
       {lastEvent && lastEvent.is_wicket && (
         <div className="rounded-xl border-2 border-red-600 bg-red-50 p-3 text-center">
           <p className="text-xl font-black uppercase text-red-600">
-            Wicket · -2 Runs {lastEvent.dismissal_type ? `(${DISMISSAL_LABELS[lastEvent.dismissal_type]})` : ''}
+            Wicket · {lastEvent.runs === 0 ? 'No Run Penalty (Free Hit)' : `${lastEvent.runs} Runs`}{' '}
+            {lastEvent.dismissal_type ? `(${DISMISSAL_LABELS[lastEvent.dismissal_type]})` : ''}
           </p>
         </div>
       )}
@@ -592,7 +598,11 @@ export default function ScoringConsole({
       )}
 
       {wicketModalOpen && (
-        <WicketModal onSelect={promptWicket} onClose={() => setWicketModalOpen(false)} />
+        <WicketModal
+          onSelect={promptWicket}
+          onClose={() => setWicketModalOpen(false)}
+          freeHitActive={innings.free_hit_active}
+        />
       )}
 
       {pendingAction && (
@@ -653,16 +663,18 @@ export default function ScoringConsole({
 function WicketModal({
   onSelect,
   onClose,
+  freeHitActive,
 }: {
   onSelect: (dismissal: DismissalType) => void;
   onClose: () => void;
+  freeHitActive: boolean;
 }) {
   const options: DismissalType[] = ['BOWLED', 'CAUGHT', 'RUN_OUT', 'LBW', 'STUMPED', 'HIT_WICKET', 'OTHER'];
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center">
       <div className="w-full max-w-sm rounded-t-2xl bg-white p-4 sm:rounded-2xl">
         <p className="mb-3 text-center text-sm font-black uppercase text-red-600">
-          Select Dismissal Type (-2 Runs)
+          Select Dismissal Type {freeHitActive ? '(Free Hit — no runs deducted)' : '(-2 Runs)'}
         </p>
         <div className="grid grid-cols-2 gap-2">
           {options.map((d) => (
