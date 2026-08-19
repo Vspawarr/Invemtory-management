@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { href: '/admin/settings', label: 'Tournament Settings', icon: '⚙️' },
   { href: '/admin/rules', label: 'Rules', icon: '📋' },
   { href: '/admin/reports', label: 'Reports', icon: '📤' },
+  { href: '/admin/admins', label: 'Admins', icon: '🔑' },
 ];
 
 export default function AdminNav({ className = '' }: { className?: string }) {
