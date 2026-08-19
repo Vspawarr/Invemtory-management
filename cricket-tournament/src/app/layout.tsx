@@ -16,6 +16,11 @@ export const metadata: Metadata = {
   title: "Shivsankalp Yuva Pratishthan Cricket Tournament",
   description:
     "Open Double Wicket Cricket Tournament, Chapaner (Tekadi), Maharashtra. Live scores, teams, fixtures, and results.",
+  appleWebApp: {
+    capable: true,
+    title: "Shivsankalp Cricket",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export const viewport = {
