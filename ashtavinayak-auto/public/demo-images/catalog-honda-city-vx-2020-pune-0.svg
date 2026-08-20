@@ -1,15 +1,29 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="800" height="480" viewBox="0 0 800 480">
   <defs>
-    <linearGradient id="g23" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1e3a5f" />
-      <stop offset="1" stop-color="#0f1f33" />
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#cfe8f5" />
+      <stop offset="1" stop-color="#eef6fa" />
     </linearGradient>
   </defs>
-  <rect width="800" height="480" fill="url(#g23)" />
-  <rect x="131" y="0" width="30" height="480" fill="white" opacity="0.03" />
-  <rect x="221" y="0" width="30" height="480" fill="white" opacity="0.03" />
-  <rect x="311" y="0" width="30" height="480" fill="white" opacity="0.03" />
-  <rect x="401" y="0" width="30" height="480" fill="white" opacity="0.03" />
-  <text x="50%" y="50%" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="white">Honda City VX — Front</text>
-  <text x="50%" y="60%" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="rgba(255,255,255,0.6)">Ashtavinayak Auto Consultant</text>
+  <rect width="800" height="480" fill="url(#sky)" />
+  <rect x="0" y="385" width="800" height="95" fill="#dde2e6" />
+  <rect x="0" y="385" width="800" height="4" fill="#c7ced3" />
+  <ellipse cx="400" cy="401" rx="260" ry="13" fill="#000" opacity="0.14" />
+  <rect x="170" y="300" width="460" height="90" rx="18" fill="#6b6f73" stroke="rgba(0,0,0,0.28)" stroke-width="3" />
+  <path d="M 260,300 L 300,205 Q 320,193 340,193 L 480,193 Q 500,193 520,205 L 570,300 Z" fill="#6b6f73" />
+  <path d="M 288,296 L 316,216 L 500,216 L 546,296 Z" fill="#bfe0ee" />
+  <line x1="402" y1="216" x2="402" y2="296" stroke="#33373b" stroke-width="6" />
+  <rect x="170" y="300" width="460" height="14" fill="#33373b" />
+  <rect x="420" y="332" width="26" height="6" rx="3" fill="#33373b" />
+  <ellipse cx="580" cy="322" rx="13" ry="9" fill="#fff3b0" />
+  <ellipse cx="183" cy="322" rx="10" ry="8" fill="#c73a3a" />
+  <circle cx="260" cy="385" r="48" fill="#1b1b1b" />
+  <circle cx="260" cy="385" r="20.16" fill="#c9ccd0" />
+  <circle cx="260" cy="385" r="20.16" fill="none" stroke="#8b8f93" stroke-width="2" />
+  <circle cx="560" cy="385" r="48" fill="#1b1b1b" />
+  <circle cx="560" cy="385" r="20.16" fill="#c9ccd0" />
+  <circle cx="560" cy="385" r="20.16" fill="none" stroke="#8b8f93" stroke-width="2" />
+  <rect x="0" y="430" width="800" height="50" fill="rgba(10,15,20,0.55)" />
+  <text x="24" y="462" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="white">Honda City VX</text>
+  <text x="776" y="462" text-anchor="end" font-family="Arial, sans-serif" font-size="15" fill="rgba(255,255,255,0.7)">Ashtavinayak Auto Consultant</text>
 </svg>
