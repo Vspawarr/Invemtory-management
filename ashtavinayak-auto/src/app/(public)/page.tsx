@@ -13,6 +13,12 @@ import { VehicleCard } from "@/components/public/vehicle-card";
 import { SellCtaSection } from "@/components/public/sell-cta-section";
 import { WhatsAppButton } from "@/components/public/whatsapp-button";
 
+// Vehicle counts/featured/latest change from the admin portal (and,
+// occasionally, direct database updates) that don't always trigger
+// revalidatePath("/") — without this the homepage stays frozen at
+// whatever it looked like the last time it was built or revalidated.
+export const revalidate = 60;
+
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSettings();
   return {
