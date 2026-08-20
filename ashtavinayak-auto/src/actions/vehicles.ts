@@ -161,6 +161,7 @@ export async function updateVehicle(id: string, formData: FormData): Promise<Act
   revalidatePath(`/admin/vehicles/${id}/edit`);
   revalidatePath("/vehicles");
   revalidatePath(`/vehicles/${existing.slug}`);
+  revalidatePath("/");
   return { ok: true, data: undefined };
 }
 

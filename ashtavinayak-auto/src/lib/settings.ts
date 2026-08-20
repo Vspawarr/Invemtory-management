@@ -1,4 +1,4 @@
-import { unstable_cache, updateTag } from "next/cache";
+import { unstable_cache, updateTag, revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -67,4 +67,5 @@ export async function saveSettings(values: Partial<Record<SettingKey, unknown>>)
     )
   );
   updateTag("settings");
+  revalidatePath("/");
 }

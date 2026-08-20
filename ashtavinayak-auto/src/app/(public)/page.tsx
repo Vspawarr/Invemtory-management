@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { ArrowRight, ShieldCheck, BadgeIndianRupee, Car, Headset, MessageCircle } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/settings";
@@ -11,6 +12,15 @@ import { CategoryCard } from "@/components/public/category-card";
 import { VehicleCard } from "@/components/public/vehicle-card";
 import { SellCtaSection } from "@/components/public/sell-cta-section";
 import { WhatsAppButton } from "@/components/public/whatsapp-button";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getSettings();
+  return {
+    title: { absolute: settings.siteTitle },
+    description: settings.siteDescription,
+    alternates: { canonical: "/" },
+  };
+}
 
 export default async function HomePage() {
   const settings = await getSettings();

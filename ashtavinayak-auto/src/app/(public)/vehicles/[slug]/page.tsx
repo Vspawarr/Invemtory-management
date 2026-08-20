@@ -82,7 +82,6 @@ export default async function VehicleDetailPage({ params }: PageProps<"/vehicles
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 pb-24 lg:pb-8">
-      {/* eslint-disable-next-line react/no-danger */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       <div className="grid gap-8 lg:grid-cols-3">
