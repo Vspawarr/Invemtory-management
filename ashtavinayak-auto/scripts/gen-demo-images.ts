@@ -32,8 +32,8 @@ function svgFor(label: string, category: string, seed: number): string {
   </defs>
   <rect width="800" height="480" fill="url(#g${seed})" />
   ${stripes.join("\n  ")}
-  <text x="50%" y="46%" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="white">${escapeXml(label)}</text>
-  <text x="50%" y="58%" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="rgba(255,255,255,0.75)">DEMO IMAGE — Ashtavinayak Auto Consultant</text>
+  <text x="50%" y="50%" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="white">${escapeXml(label)}</text>
+  <text x="50%" y="60%" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="rgba(255,255,255,0.6)">Ashtavinayak Auto Consultant</text>
 </svg>`;
 }
 

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="480" viewBox="0 0 800 480">
+  <defs>
+    <linearGradient id="g27" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5a5a8f" />
+      <stop offset="1" stop-color="#0f1f33" />
+    </linearGradient>
+  </defs>
+  <rect width="800" height="480" fill="url(#g27)" />
+  <rect x="279" y="0" width="30" height="480" fill="white" opacity="0.03" />
+  <rect x="369" y="0" width="30" height="480" fill="white" opacity="0.03" />
+  <rect x="459" y="0" width="30" height="480" fill="white" opacity="0.03" />
+  <rect x="549" y="0" width="30" height="480" fill="white" opacity="0.03" />
+  <text x="50%" y="50%" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="white">TVS King Deluxe — Interior</text>
+  <text x="50%" y="60%" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="rgba(255,255,255,0.6)">Ashtavinayak Auto Consultant</text>
+</svg>
