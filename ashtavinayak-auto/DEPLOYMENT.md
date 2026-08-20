@@ -4,6 +4,8 @@ You'll need your own Vercel and Supabase accounts (you have both already) —
 these are the exact steps to take in each dashboard, plus a couple of
 one-time commands to run from a terminal.
 
+**Live deployment:** https://ashtavinayak-auto-consultant.vercel.app
+
 ## 1. Supabase: create the database
 
 1. In Supabase, create a new project (any region close to your users).
