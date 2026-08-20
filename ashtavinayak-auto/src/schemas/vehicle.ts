@@ -1,10 +1,18 @@
 import { z } from "zod";
-import { checkboxBoolean, optionalCoercedNumber } from "@/lib/zod-helpers";
+import { checkboxBoolean, optionalCoercedNumber, requiredCoercedNumber } from "@/lib/zod-helpers";
 
-export const vehicleTypeEnum = z.enum(["CAR", "BIKE", "SCOOTER", "BUS", "COMMERCIAL", "OTHER"]);
-export const fuelTypeEnum = z.enum(["PETROL", "DIESEL", "CNG", "ELECTRIC", "HYBRID", "LPG", "OTHER"]);
-export const transmissionEnum = z.enum(["MANUAL", "AUTOMATIC", "AMT", "CVT", "DCT", "OTHER"]);
-export const conditionEnum = z.enum(["EXCELLENT", "GOOD", "AVERAGE", "NEEDS_REPAIR"]);
+export const vehicleTypeEnum = z.enum(["CAR", "BIKE", "SCOOTER", "BUS", "COMMERCIAL", "OTHER"], {
+  error: "Select a vehicle type.",
+});
+export const fuelTypeEnum = z.enum(["PETROL", "DIESEL", "CNG", "ELECTRIC", "HYBRID", "LPG", "OTHER"], {
+  error: "Select a fuel type.",
+});
+export const transmissionEnum = z.enum(["MANUAL", "AUTOMATIC", "AMT", "CVT", "DCT", "OTHER"], {
+  error: "Select a transmission.",
+});
+export const conditionEnum = z.enum(["EXCELLENT", "GOOD", "AVERAGE", "NEEDS_REPAIR"], {
+  error: "Select a condition.",
+});
 
 const currentYear = new Date().getFullYear();
 
@@ -14,15 +22,21 @@ export const vehicleFormSchema = z.object({
   brand: z.string().trim().min(1, "Brand is required."),
   model: z.string().trim().min(1, "Model is required."),
   variant: z.string().trim().optional().or(z.literal("")),
-  year: z.coerce.number().int().min(1980).max(currentYear + 1, "Year is not reasonable."),
+  year: requiredCoercedNumber(
+    z.coerce.number().int().min(1980).max(currentYear + 1, "Year is not reasonable."),
+    "Manufacturing year is required."
+  ),
   registrationYear: optionalCoercedNumber(z.coerce.number().int().min(1980).max(currentYear + 1)),
   registrationNumber: z.string().trim().optional().or(z.literal("")),
-  price: z.coerce.number().int().min(0, "Price must be zero or more."),
+  price: requiredCoercedNumber(z.coerce.number().int().min(0, "Price must be zero or more."), "Price is required."),
   ownerExpectedPrice: optionalCoercedNumber(z.coerce.number().int().min(0)),
   adminValuation: optionalCoercedNumber(z.coerce.number().int().min(0)),
   negotiatedPrice: optionalCoercedNumber(z.coerce.number().int().min(0)),
   isPriceNegotiable: checkboxBoolean,
-  kilometres: z.coerce.number().int().min(0, "KM must be zero or more."),
+  kilometres: requiredCoercedNumber(
+    z.coerce.number().int().min(0, "KM must be zero or more."),
+    "KM driven is required."
+  ),
   fuelType: fuelTypeEnum,
   transmission: transmissionEnum.optional(),
   engine: z.string().trim().optional().or(z.literal("")),

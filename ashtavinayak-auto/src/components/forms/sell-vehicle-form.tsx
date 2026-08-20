@@ -5,7 +5,14 @@ import { useForm, Controller, type FieldPath } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Check, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
-import { submissionSchema, type SubmissionInput, type SubmissionValues } from "@/schemas/submission";
+import {
+  submissionSchema,
+  ownerDetailsSchema,
+  submissionVehicleDetailsSchema,
+  submissionPriceLocationSchema,
+  type SubmissionInput,
+  type SubmissionValues,
+} from "@/schemas/submission";
 import { createSubmission } from "@/actions/submissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,6 +75,25 @@ const STEPS = [
 
 type StepFieldName = FieldPath<SubmissionValues>;
 
+// Per-step schemas mirror STEPS above — used to give a clear, immediate reason
+// when "Next" is blocked, instead of failing silently. (Photos/Review steps
+// are validated separately, hence the nulls.)
+const STEP_SCHEMAS = [ownerDetailsSchema, submissionVehicleDetailsSchema, submissionPriceLocationSchema, null, null] as const;
+
+const FIELD_LABELS: Partial<Record<string, string>> = {
+  name: "Full Name",
+  phone: "Mobile",
+  city: "City",
+  vehicleType: "Vehicle Type",
+  brand: "Brand",
+  model: "Model",
+  year: "Manufacturing Year",
+  registrationYear: "Registration Year",
+  kilometres: "KM Driven",
+  fuelType: "Fuel Type",
+  owners: "Number of Owners",
+};
+
 export function SellVehicleForm() {
   const [step, setStep] = useState(0);
   const [images, setImages] = useState<PendingImage[]>([]);
@@ -90,6 +116,7 @@ export function SellVehicleForm() {
     control,
     trigger,
     watch,
+    getValues,
     formState: { errors },
   } = useForm<SubmissionValues, unknown, SubmissionInput>({
     resolver: zodResolver(submissionSchema),
@@ -121,7 +148,29 @@ export function SellVehicleForm() {
     const fields = STEPS[step].fields as StepFieldName[];
     if (fields.length > 0) {
       const valid = await trigger(fields);
-      if (!valid) return;
+      if (!valid) {
+        // Don't fail silently: trigger() flips `valid` synchronously with
+        // formState, but the `errors` binding above can still be a render
+        // behind at this point — re-validate this step's own slice of the
+        // schema directly against the current values so the toast/scroll
+        // target is always accurate, not stale.
+        const stepSchema = STEP_SCHEMAS[step];
+        const result = stepSchema?.safeParse(getValues());
+        const firstIssue = result && !result.success ? result.error.issues[0] : undefined;
+        const fieldName = firstIssue ? String(firstIssue.path[0] ?? "") : "";
+        const label = FIELD_LABELS[fieldName];
+        toast.error(
+          firstIssue
+            ? `${label ?? fieldName}: ${firstIssue.message}`
+            : "Please correct the highlighted fields before continuing."
+        );
+        if (fieldName) {
+          const el = document.getElementById(fieldName);
+          el?.scrollIntoView({ behavior: "smooth", block: "center" });
+          if (el instanceof HTMLElement) el.focus();
+        }
+        return;
+      }
     }
     if (step === 3 && images.length < 4) {
       toast.error("Please upload at least 4 photos.");

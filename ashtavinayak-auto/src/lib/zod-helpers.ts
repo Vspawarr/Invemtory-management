@@ -27,3 +27,27 @@ export function optionalCoercedNumber<T extends z.ZodType<number, unknown>>(sche
     schema.optional()
   );
 }
+
+/**
+ * A REQUIRED numeric field bound to a text/number input. Same root problem as
+ * optionalCoercedNumber — Number("") is 0, not NaN — but here a blank input
+ * must fail validation instead of silently becoming a "confirmed" 0 (e.g. a
+ * blank "KM Driven" must not be accepted as an actual reading of zero km).
+ * A blank field gets `requiredMessage`; a non-blank invalid value (e.g. "-5")
+ * still gets the wrapped schema's own message (e.g. "KM must be zero or more.").
+ */
+export function requiredCoercedNumber<T extends z.ZodType<number, unknown>>(
+  schema: T,
+  requiredMessage: string
+) {
+  return z
+    .preprocess((v) => (v === "" || v === undefined || v === null ? undefined : v), z.any())
+    .transform((v, ctx) => {
+      if (v === undefined) {
+        ctx.addIssue({ code: "custom", message: requiredMessage });
+        return z.NEVER;
+      }
+      return v;
+    })
+    .pipe(schema);
+}

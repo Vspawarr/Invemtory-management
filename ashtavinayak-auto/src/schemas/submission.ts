@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { vehicleTypeEnum, fuelTypeEnum, transmissionEnum, conditionEnum } from "./vehicle";
-import { checkboxBoolean, optionalCoercedNumber } from "@/lib/zod-helpers";
+import { checkboxBoolean, optionalCoercedNumber, requiredCoercedNumber } from "@/lib/zod-helpers";
 
 const currentYear = new Date().getFullYear();
 
@@ -21,10 +21,16 @@ export const submissionVehicleDetailsSchema = z.object({
   brand: z.string().trim().min(1, "Brand is required."),
   model: z.string().trim().min(1, "Model is required."),
   variant: z.string().trim().optional().or(z.literal("")),
-  year: z.coerce.number().int().min(1980).max(currentYear + 1, "Year is not reasonable."),
+  year: requiredCoercedNumber(
+    z.coerce.number().int().min(1980).max(currentYear + 1, "Year is not reasonable."),
+    "Manufacturing year is required."
+  ),
   registrationYear: optionalCoercedNumber(z.coerce.number().int().min(1980).max(currentYear + 1)),
   registrationNumber: z.string().trim().optional().or(z.literal("")),
-  kilometres: z.coerce.number().int().min(0, "KM must be zero or more."),
+  kilometres: requiredCoercedNumber(
+    z.coerce.number().int().min(0, "KM must be zero or more."),
+    "KM driven is required."
+  ),
   fuelType: fuelTypeEnum,
   transmission: transmissionEnum.optional(),
   engine: z.string().trim().optional().or(z.literal("")),
