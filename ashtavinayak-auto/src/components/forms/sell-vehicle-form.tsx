@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, Controller, type FieldPath } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ import {
   type SubmissionValues,
 } from "@/schemas/submission";
 import { createSubmission } from "@/actions/submissions";
+import { waSubmissionConfirmation } from "@/lib/whatsapp";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -99,6 +100,27 @@ export function SellVehicleForm() {
   const [images, setImages] = useState<PendingImage[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<{ referenceNumber: string; trackingToken: string } | null>(null);
+  // Opened synchronously on the Submit click (a real user gesture) so the
+  // browser doesn't block it as a popup; redirected to the WhatsApp
+  // confirmation link once the submission succeeds, or closed if it doesn't.
+  const pendingWhatsAppWindow = useRef<Window | null>(null);
+
+  const openPendingWhatsAppTab = () => {
+    const win = window.open("about:blank", "_blank");
+    try {
+      win?.document.write(
+        '<p style="font-family:system-ui,sans-serif;padding:2rem;color:#444;">Preparing your WhatsApp confirmation…</p>'
+      );
+    } catch {
+      // Cross-origin/blocked document access — harmless, the redirect below still works.
+    }
+    pendingWhatsAppWindow.current = win;
+  };
+
+  const closePendingWhatsAppTab = () => {
+    pendingWhatsAppWindow.current?.close();
+    pendingWhatsAppWindow.current = null;
+  };
 
   const draft = useMemo(() => {
     if (typeof window === "undefined") return undefined;
@@ -193,10 +215,17 @@ export function SellVehicleForm() {
       const result = await createSubmission(fd);
       if (!result.ok) {
         toast.error(result.error);
+        closePendingWhatsAppTab();
         return;
       }
       window.sessionStorage.removeItem(DRAFT_KEY);
       setSuccess(result.data);
+
+      const win = pendingWhatsAppWindow.current;
+      if (win && !win.closed) {
+        win.location.href = waSubmissionConfirmation(result.data.referenceNumber);
+      }
+      pendingWhatsAppWindow.current = null;
     } finally {
       setSubmitting(false);
     }
@@ -227,7 +256,7 @@ export function SellVehicleForm() {
         Step {step + 1} of {STEPS.length}: {STEPS[step].title}
       </p>
 
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form onSubmit={handleSubmit(onSubmit, closePendingWhatsAppTab)}>
         <Card>
           <CardContent className="space-y-4 pt-6">
             {step === 0 && (
@@ -435,7 +464,7 @@ export function SellVehicleForm() {
               Next <ChevronRight className="h-4 w-4" />
             </Button>
           ) : (
-            <Button type="submit" className="flex-1" disabled={submitting}>
+            <Button type="submit" className="flex-1" disabled={submitting} onClick={openPendingWhatsAppTab}>
               {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
               Submit Vehicle for Review
             </Button>
