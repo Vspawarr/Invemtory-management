@@ -40,11 +40,11 @@ export function SiteHeader({
   return (
     <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
+        <Link href="/" className="flex min-w-0 items-center gap-2">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
             <Car className="h-5 w-5" />
           </div>
-          <span className="hidden text-sm font-bold leading-tight sm:block">
+          <span className="truncate text-sm font-bold leading-tight sm:text-base">
             {businessName}
           </span>
         </Link>
