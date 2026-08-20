@@ -1,6 +1,22 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  getInventoryByCategory,
+  getInventoryBySource,
+  getInventoryByStatus,
+  getTopBrands,
+  getMonthlyEnquiries,
+  getSubmissionFunnel,
+} from "@/lib/queries/dashboard";
+import {
+  CategoryBarChart,
+  SourcePieChart,
+  StatusBarChart,
+  BrandBarChart,
+  EnquiriesLineChart,
+  SubmissionFunnelChart,
+} from "@/components/admin/dashboard-charts";
 
 export const metadata = { title: "Dashboard" };
 
@@ -40,7 +56,15 @@ async function getStats() {
 }
 
 export default async function AdminDashboardPage() {
-  const stats = await getStats();
+  const [stats, byCategory, bySource, byStatus, topBrands, monthlyEnquiries, funnel] = await Promise.all([
+    getStats(),
+    getInventoryByCategory(),
+    getInventoryBySource(),
+    getInventoryByStatus(),
+    getTopBrands(),
+    getMonthlyEnquiries(),
+    getSubmissionFunnel(),
+  ]);
 
   const cards: { label: string; value: number; href: string }[] = [
     { label: "Total Inventory", value: stats.totalInventory, href: "/admin/vehicles" },
@@ -74,6 +98,15 @@ export default async function AdminDashboardPage() {
             </Card>
           </Link>
         ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <CategoryBarChart data={byCategory} />
+        <SourcePieChart data={bySource} />
+        <StatusBarChart data={byStatus} />
+        <BrandBarChart data={topBrands} />
+        <EnquiriesLineChart data={monthlyEnquiries} />
+        <SubmissionFunnelChart data={funnel} />
       </div>
     </div>
   );

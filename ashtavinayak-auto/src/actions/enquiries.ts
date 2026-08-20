@@ -1,10 +1,13 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { enquirySchema, callbackSchema } from "@/schemas/enquiry";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createNotification } from "@/lib/notify";
-import { getSessionUser } from "@/lib/auth-guard";
+import { getSessionUser, assertAdmin } from "@/lib/auth-guard";
+import { logAudit } from "@/lib/audit";
+import type { EnquiryStatus, CallbackStatus } from "@prisma/client";
 import type { ActionResult } from "./auth";
 
 export async function createEnquiry(formData: FormData): Promise<ActionResult> {
@@ -59,7 +62,7 @@ export async function createCallbackRequest(formData: FormData): Promise<ActionR
     return { ok: true, data: undefined };
   }
 
-  const callback = await prisma.callbackRequest.create({
+  await prisma.callbackRequest.create({
     data: {
       name: parsed.data.name,
       phone: parsed.data.phone,
@@ -73,9 +76,36 @@ export async function createCallbackRequest(formData: FormData): Promise<ActionR
     type: "NEW_CALLBACK",
     title: "New callback request",
     body: `${parsed.data.name} requested a callback`,
-    link: `/admin/callbacks/${callback.id}`,
+    link: `/admin/callbacks`,
     emailAdmin: true,
   });
 
+  return { ok: true, data: undefined };
+}
+
+// ─── Admin management ──────────────────────────────────────────────────────
+
+export async function updateEnquiryStatus(id: string, status: EnquiryStatus): Promise<ActionResult> {
+  const user = await assertAdmin();
+  await prisma.enquiry.update({ where: { id }, data: { status, assignedToId: user.id } });
+  await logAudit({ userId: user.id, action: "ENQUIRY_STATUS_UPDATED", entity: "Enquiry", entityId: id, metadata: { status } });
+  revalidatePath(`/admin/enquiries/${id}`);
+  revalidatePath("/admin/enquiries");
+  return { ok: true, data: undefined };
+}
+
+export async function saveEnquiryNotes(id: string, notes: string): Promise<ActionResult> {
+  const user = await assertAdmin();
+  await prisma.enquiry.update({ where: { id }, data: { internalNotes: notes } });
+  await logAudit({ userId: user.id, action: "ENQUIRY_NOTES_SAVED", entity: "Enquiry", entityId: id });
+  revalidatePath(`/admin/enquiries/${id}`);
+  return { ok: true, data: undefined };
+}
+
+export async function updateCallbackStatus(id: string, status: CallbackStatus): Promise<ActionResult> {
+  const user = await assertAdmin();
+  await prisma.callbackRequest.update({ where: { id }, data: { status } });
+  await logAudit({ userId: user.id, action: "CALLBACK_STATUS_UPDATED", entity: "CallbackRequest", entityId: id, metadata: { status } });
+  revalidatePath("/admin/callbacks");
   return { ok: true, data: undefined };
 }

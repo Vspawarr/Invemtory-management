@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PUBLIC_VEHICLE_SELECT, PUBLIC_VEHICLE_STATUSES, vehicleTitle } from "@/lib/public-vehicle";
 import { getSettings } from "@/lib/settings";
+import { getSessionUser } from "@/lib/auth-guard";
 import { waVehicleEnquiry, waVehicleInterest } from "@/lib/whatsapp";
 import { formatPrice, formatNumber } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,6 +16,7 @@ import { EnquiryForm } from "@/components/public/enquiry-form";
 import { CallbackForm } from "@/components/public/callback-form";
 import { WhatsAppButton } from "@/components/public/whatsapp-button";
 import { MobileStickyCta } from "@/components/public/mobile-sticky-cta";
+import { FavouriteButton } from "@/components/public/favourite-button";
 import { Phone } from "lucide-react";
 
 async function getVehicle(slug: string) {
@@ -43,8 +45,17 @@ export async function generateMetadata({ params }: PageProps<"/vehicles/[slug]">
 
 export default async function VehicleDetailPage({ params }: PageProps<"/vehicles/[slug]">) {
   const { slug } = await params;
-  const [vehicle, settings] = await Promise.all([getVehicle(slug), getSettings()]);
+  const [vehicle, settings, sessionUser] = await Promise.all([getVehicle(slug), getSettings(), getSessionUser()]);
   if (!vehicle) notFound();
+
+  const isFavourited = sessionUser
+    ? Boolean(
+        await prisma.favourite.findUnique({
+          where: { userId_vehicleId: { userId: sessionUser.id, vehicleId: vehicle.id } },
+          select: { id: true },
+        })
+      )
+    : false;
 
   const title = vehicleTitle(vehicle);
   const waDetailLink = waVehicleEnquiry({ title, price: formatPrice(vehicle.price), reference: vehicle.slug });
@@ -84,7 +95,10 @@ export default async function VehicleDetailPage({ params }: PageProps<"/vehicles
                 <h1 className="text-2xl font-bold">{title}</h1>
                 <p className="text-sm text-muted-foreground">{vehicle.city}{vehicle.state ? `, ${vehicle.state}` : ""}</p>
               </div>
-              <VehicleStatusBadge status={vehicle.status} />
+              <div className="flex items-center gap-2">
+                <VehicleStatusBadge status={vehicle.status} />
+                <FavouriteButton vehicleId={vehicle.id} initialFavourited={isFavourited} />
+              </div>
             </div>
             <p className="mt-2 text-3xl font-extrabold text-primary">
               {formatPrice(vehicle.price)}

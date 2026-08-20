@@ -65,3 +65,19 @@ export const ENQUIRY_STATUS_LABELS: Record<string, string> = {
   CLOSED: "Closed",
   NOT_INTERESTED: "Not Interested",
 };
+
+export const ENQUIRY_STATUS_OPTIONS = Object.entries(ENQUIRY_STATUS_LABELS).map(([value, label]) => ({
+  value,
+  label,
+}));
+
+export const CALLBACK_STATUS_LABELS: Record<string, string> = {
+  PENDING: "Pending",
+  CONTACTED: "Contacted",
+  CLOSED: "Closed",
+};
+
+export const CALLBACK_STATUS_OPTIONS = Object.entries(CALLBACK_STATUS_LABELS).map(([value, label]) => ({
+  value,
+  label,
+}));
