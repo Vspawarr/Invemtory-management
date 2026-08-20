@@ -194,6 +194,12 @@ integration in this version. The business number always comes from
 - Rate limiting (`src/lib/rate-limit.ts`) is an in-memory sliding window —
   fine for a single instance; swap the store for Redis to scale out.
 
+## Deployment
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for the exact Vercel + Supabase setup
+steps, including the connection-pooling configuration required for a
+serverless deployment and the Cloudinary image-storage caveat.
+
 ## Troubleshooting
 
 - **`prisma migrate dev` fails to connect** — confirm `DATABASE_URL` and that
