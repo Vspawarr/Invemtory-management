@@ -47,7 +47,12 @@ export function SettingsForm({ settings }: { settings: Settings }) {
           <TextField name="businessCity" label="City" defaultValue={settings.businessCity} />
           <TextField name="businessState" label="State" defaultValue={settings.businessState} />
           <TextField name="businessPincode" label="PIN Code" defaultValue={settings.businessPincode} />
-          <TextField name="googleMapsUrl" label="Google Maps URL" defaultValue={settings.googleMapsUrl} />
+          <TextField
+            name="googleMapsUrl"
+            label="Google Maps Link"
+            defaultValue={settings.googleMapsUrl}
+            hint="A share link (e.g. maps.app.goo.gl/...) is fine — shown as a 'Get Directions' button. The embedded map preview is generated from the address above."
+          />
           <TextField name="businessHours" label="Business Hours" defaultValue={settings.businessHours} />
           <TextField name="socialFacebook" label="Facebook URL" defaultValue={settings.socialFacebook} />
           <TextField name="socialInstagram" label="Instagram URL" defaultValue={settings.socialInstagram} />

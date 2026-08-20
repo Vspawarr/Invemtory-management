@@ -4,12 +4,23 @@ import { waGeneralChat } from "@/lib/whatsapp";
 import { Card, CardContent } from "@/components/ui/card";
 import { WhatsAppButton } from "@/components/public/whatsapp-button";
 import { EnquiryForm } from "@/components/public/enquiry-form";
-import { Phone, Mail, MapPin, Clock } from "lucide-react";
+import { Phone, Mail, MapPin, Clock, ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = { title: "Contact Us" };
 
 export default async function ContactPage() {
   const settings = await getSettings();
+
+  // Google share links (maps.app.goo.gl/...) can't be embedded in an iframe —
+  // Google blocks that. The embeddable preview is generated from the address;
+  // the saved googleMapsUrl is used as a plain "Get Directions" link instead.
+  const addressQuery = [settings.businessAddress, settings.businessCity, settings.businessState]
+    .filter(Boolean)
+    .join(", ");
+  const embedSrc = addressQuery
+    ? `https://www.google.com/maps?q=${encodeURIComponent(addressQuery)}&output=embed`
+    : "";
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-12">
@@ -54,15 +65,17 @@ export default async function ContactPage() {
             </CardContent>
           </Card>
 
-          {settings.googleMapsUrl && (
+          {embedSrc && (
             <Card className="overflow-hidden">
-              <iframe
-                src={settings.googleMapsUrl}
-                className="h-64 w-full border-0"
-                loading="lazy"
-                title="Location map"
-              />
+              <iframe src={embedSrc} className="h-64 w-full border-0" loading="lazy" title="Location map" />
             </Card>
+          )}
+          {settings.googleMapsUrl && (
+            <Button asChild variant="outline" className="w-full">
+              <a href={settings.googleMapsUrl} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-4 w-4" /> Get Directions on Google Maps
+              </a>
+            </Button>
           )}
         </div>
 
