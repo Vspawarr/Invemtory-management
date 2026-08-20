@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="480" viewBox="0 0 800 480">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#cfe8f5" />
+      <stop offset="1" stop-color="#eef6fa" />
+    </linearGradient>
+  </defs>
+  <rect width="800" height="480" fill="url(#sky)" />
+  <rect x="0" y="385" width="800" height="95" fill="#dde2e6" />
+  <rect x="0" y="385" width="800" height="4" fill="#c7ced3" />
+  <ellipse cx="430" cy="401" rx="320" ry="13" fill="#000" opacity="0.14" />
+  <rect x="90" y="138" width="650" height="172" rx="22" fill="#6b6f73" stroke="rgba(0,0,0,0.28)" stroke-width="3" />
+  <rect x="90" y="138" width="650" height="12" rx="6" fill="#999da1" />
+  <rect x="128" y="172" width="58" height="58" rx="8" fill="#bfe0ee" />
+  <rect x="207" y="172" width="58" height="58" rx="8" fill="#bfe0ee" />
+  <rect x="286" y="172" width="58" height="58" rx="8" fill="#bfe0ee" />
+  <rect x="365" y="172" width="58" height="58" rx="8" fill="#bfe0ee" />
+  <rect x="444" y="172" width="58" height="58" rx="8" fill="#bfe0ee" />
+  <rect x="523" y="172" width="58" height="58" rx="8" fill="#bfe0ee" />
+  <rect x="648" y="172" width="66" height="88" rx="10" fill="#bfe0ee" />
+  <rect x="168" y="232" width="46" height="78" rx="5" fill="#2b2f33" />
+  <rect x="90" y="296" width="650" height="18" fill="#2b2f33" />
+  <circle cx="240" cy="385" r="52" fill="#1b1b1b" />
+  <circle cx="240" cy="385" r="21.84" fill="#c9ccd0" />
+  <circle cx="240" cy="385" r="21.84" fill="none" stroke="#8b8f93" stroke-width="2" />
+  <circle cx="620" cy="385" r="52" fill="#1b1b1b" />
+  <circle cx="620" cy="385" r="21.84" fill="#c9ccd0" />
+  <circle cx="620" cy="385" r="21.84" fill="none" stroke="#8b8f93" stroke-width="2" />
+  <rect x="0" y="430" width="800" height="50" fill="rgba(10,15,20,0.55)" />
+  <text x="24" y="462" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="white">Tata Marcopolo 35-Seater</text>
+  <text x="776" y="462" text-anchor="end" font-family="Arial, sans-serif" font-size="15" fill="rgba(255,255,255,0.7)">Ashtavinayak Auto Consultant</text>
+</svg>

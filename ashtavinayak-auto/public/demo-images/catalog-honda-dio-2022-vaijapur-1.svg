@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="480" viewBox="0 0 800 480">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#cfe8f5" />
+      <stop offset="1" stop-color="#eef6fa" />
+    </linearGradient>
+  </defs>
+  <rect width="800" height="480" fill="url(#sky)" />
+  <rect x="0" y="385" width="800" height="95" fill="#dde2e6" />
+  <rect x="0" y="385" width="800" height="4" fill="#c7ced3" />
+  <ellipse cx="400" cy="401" rx="210" ry="13" fill="#000" opacity="0.14" />
+  <path d="M 234,385 L 234,278 Q 234,232 278,232 Q 306,232 306,264 L 306,330 Q 306,346 322,346 L 460,346 Q 468,346 470,330 L 474,296 Q 478,270 508,266 L 560,262 L 560,346 L 322,346"
+    fill="#1e3a5f" stroke="rgba(0,0,0,0.28)" stroke-width="3" stroke-linejoin="round" />
+  <rect x="478" y="252" width="96" height="26" rx="12" fill="#232323" />
+  <circle cx="268" cy="252" r="12" fill="#fff3b0" stroke="#00001f" stroke-width="1.5" />
+  <path d="M 300,232 L 330,214" stroke="#00001f" stroke-width="7" stroke-linecap="round" />
+  <circle cx="335" cy="211" r="6" fill="#00001f" />
+  <circle cx="258" cy="385" r="42" fill="#1b1b1b" />
+  <circle cx="258" cy="385" r="17.64" fill="#c9ccd0" />
+  <circle cx="258" cy="385" r="17.64" fill="none" stroke="#8b8f93" stroke-width="2" />
+  <circle cx="556" cy="385" r="42" fill="#1b1b1b" />
+  <circle cx="556" cy="385" r="17.64" fill="#c9ccd0" />
+  <circle cx="556" cy="385" r="17.64" fill="none" stroke="#8b8f93" stroke-width="2" />
+  <rect x="0" y="430" width="800" height="50" fill="rgba(10,15,20,0.55)" />
+  <text x="24" y="462" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="white">Honda Dio</text>
+  <text x="776" y="462" text-anchor="end" font-family="Arial, sans-serif" font-size="15" fill="rgba(255,255,255,0.7)">Ashtavinayak Auto Consultant</text>
+</svg>

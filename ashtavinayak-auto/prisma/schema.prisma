@@ -1,0 +1,464 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Pooled connection (e.g. Supabase's pgbouncer port 6543) — used at runtime.
+  url       = env("DATABASE_URL")
+  // Direct, unpooled connection — used only for migrations. In local dev this
+  // is the same database as DATABASE_URL; in production point it at the
+  // non-pooled connection string (e.g. Supabase port 5432).
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  SALES
+  BUYER
+}
+
+enum VehicleType {
+  CAR
+  BIKE
+  SCOOTER
+  BUS
+  COMMERCIAL
+  OTHER
+}
+
+enum VehicleSource {
+  BUSINESS_STOCK
+  CUSTOMER_SUBMITTED
+}
+
+enum ListingType {
+  BUSINESS_STOCK
+  CUSTOMER_CONSIGNMENT
+}
+
+enum VehicleStatus {
+  DRAFT
+  PENDING_REVIEW
+  LISTED
+  RESERVED
+  SOLD
+  REJECTED
+  ARCHIVED
+}
+
+enum SubmissionStatus {
+  PENDING_REVIEW
+  UNDER_REVIEW
+  MORE_INFORMATION_REQUIRED
+  APPROVED
+  REJECTED
+}
+
+enum FuelType {
+  PETROL
+  DIESEL
+  CNG
+  ELECTRIC
+  HYBRID
+  LPG
+  OTHER
+}
+
+enum Transmission {
+  MANUAL
+  AUTOMATIC
+  AMT
+  CVT
+  DCT
+  OTHER
+}
+
+enum Condition {
+  EXCELLENT
+  GOOD
+  AVERAGE
+  NEEDS_REPAIR
+}
+
+enum PreferredContact {
+  PHONE
+  WHATSAPP
+  EMAIL
+}
+
+enum EnquiryStatus {
+  NEW
+  CONTACTED
+  FOLLOW_UP
+  INTERESTED
+  CLOSED
+  NOT_INTERESTED
+}
+
+enum CallbackStatus {
+  PENDING
+  CONTACTED
+  CLOSED
+}
+
+enum NotificationType {
+  NEW_SUBMISSION
+  NEW_ENQUIRY
+  NEW_CALLBACK
+  NEW_REGISTRATION
+  VEHICLE_APPROVED
+  VEHICLE_SOLD
+  GENERAL
+}
+
+// ─── Auth / people ────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  phone        String?
+  passwordHash String
+  role         Role     @default(BUYER)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  favourites       Favourite[]
+  enquiries        Enquiry[]           @relation("EnquiryUser")
+  assignedEnquiries Enquiry[]          @relation("EnquiryAssignee")
+  auditLogs        AuditLog[]
+  approvedVehicles Vehicle[]           @relation("VehicleApprover")
+  reviewedSubmissions VehicleSubmission[] @relation("SubmissionReviewer")
+
+  @@index([role])
+  @@index([createdAt])
+}
+
+model VehicleSeller {
+  id               String            @id @default(cuid())
+  name             String
+  phone            String            @unique
+  email            String?
+  city             String
+  state            String?
+  preferredContact PreferredContact  @default(WHATSAPP)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  submissions VehicleSubmission[]
+  vehicles    Vehicle[]
+}
+
+// ─── Catalog ──────────────────────────────────────────────────────────────
+
+model Category {
+  id          String      @id @default(cuid())
+  name        String
+  slug        String      @unique
+  description String?
+  vehicleType VehicleType
+  imageUrl    String?
+  isActive    Boolean     @default(true)
+  sortOrder   Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  vehicles Vehicle[]
+}
+
+model Feature {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  vehicles VehicleFeature[]
+}
+
+// ─── Vehicles ─────────────────────────────────────────────────────────────
+
+model Vehicle {
+  id     String        @id @default(cuid())
+  slug   String        @unique
+  source VehicleSource @default(BUSINESS_STOCK)
+  listingType ListingType @default(BUSINESS_STOCK)
+  status VehicleStatus @default(DRAFT)
+
+  categoryId  String
+  category    Category    @relation(fields: [categoryId], references: [id])
+  vehicleType VehicleType
+
+  brand              String
+  model              String
+  variant            String?
+  year               Int
+  registrationYear   Int?
+  // PRIVATE: never exposed publicly
+  registrationNumber String?
+
+  // Public listing price — the ONLY price buyers ever see
+  price              Int
+  // PRIVATE pricing fields — admin only
+  ownerExpectedPrice Int?
+  adminValuation     Int?
+  negotiatedPrice    Int?
+  isPriceNegotiable  Boolean @default(false)
+
+  kilometres   Int
+  fuelType     FuelType
+  transmission Transmission?
+  engine       String?
+  mileage      String?
+  owners       Int?
+  color        String?
+  condition    Condition?
+  location     String?
+  city         String
+  state        String?
+  description  String?
+
+  rcAvailable             Boolean @default(false)
+  insuranceAvailable      Boolean @default(false)
+  pucAvailable            Boolean @default(false)
+  serviceHistoryAvailable Boolean @default(false)
+  hasLoan                 Boolean @default(false)
+
+  isFeatured Boolean @default(false)
+  isDemo     Boolean @default(false)
+
+  approvedAt   DateTime?
+  approvedById String?
+  approvedBy   User?     @relation("VehicleApprover", fields: [approvedById], references: [id])
+  listedAt     DateTime?
+  reservedAt   DateTime?
+  soldAt       DateTime?
+
+  sellerId     String?
+  seller       VehicleSeller? @relation(fields: [sellerId], references: [id])
+  submissionId String?        @unique
+  submission   VehicleSubmission? @relation(fields: [submissionId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  images     VehicleImage[]
+  features   VehicleFeature[]
+  enquiries  Enquiry[]
+  favourites Favourite[]
+  callbacks  CallbackRequest[]
+
+  @@index([status])
+  @@index([source])
+  @@index([vehicleType])
+  @@index([brand])
+  @@index([model])
+  @@index([price])
+  @@index([year])
+  @@index([city])
+  @@index([categoryId])
+  @@index([sellerId])
+  @@index([createdAt])
+  @@index([status, isFeatured])
+}
+
+model VehicleImage {
+  id        String   @id @default(cuid())
+  vehicleId String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  url       String
+  storageKey String?
+  altText   String?
+  sortOrder Int      @default(0)
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([vehicleId])
+}
+
+model VehicleFeature {
+  vehicleId String
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  featureId String
+  feature   Feature @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  @@id([vehicleId, featureId])
+}
+
+// ─── Submissions (Sell Your Vehicle) ──────────────────────────────────────
+
+model VehicleSubmission {
+  id              String           @id @default(cuid())
+  seq             Int              @unique @default(autoincrement())
+  referenceNumber String           @unique
+  status          SubmissionStatus @default(PENDING_REVIEW)
+
+  // Secure public status page access: SHA-256 hash of a crypto-random token.
+  // The plaintext token is shown once to the seller and never stored or logged.
+  publicTrackingTokenHash String?
+  trackingTokenCreatedAt  DateTime?
+
+  sellerId String
+  seller   VehicleSeller @relation(fields: [sellerId], references: [id])
+
+  vehicleType        VehicleType
+  brand              String
+  model              String
+  variant            String?
+  year               Int
+  registrationYear   Int?
+  registrationNumber String?
+  kilometres         Int
+  fuelType           FuelType
+  transmission       Transmission?
+  engine             String?
+  color              String?
+  owners             Int?
+  condition          Condition?
+
+  expectedPrice     Int?
+  isPriceNegotiable Boolean @default(false)
+  adminValuation    Int?
+
+  city            String
+  state           String?
+  pincode         String?
+  vehicleLocation String?
+  description     String?
+
+  rcAvailable             Boolean @default(false)
+  insuranceAvailable      Boolean @default(false)
+  pucAvailable            Boolean @default(false)
+  serviceHistoryAvailable Boolean @default(false)
+  hasLoan                 Boolean @default(false)
+
+  consentAt DateTime?
+  isDemo    Boolean   @default(false)
+
+  adminNotes             String?
+  requestMoreInfoMessage String?
+  rejectionReason        String?
+
+  reviewedAt   DateTime?
+  reviewedById String?
+  reviewedBy   User?     @relation("SubmissionReviewer", fields: [reviewedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  images  VehicleSubmissionImage[]
+  vehicle Vehicle?
+
+  @@index([status])
+  @@index([sellerId])
+  @@index([createdAt])
+  @@index([vehicleType])
+}
+
+model VehicleSubmissionImage {
+  id           String            @id @default(cuid())
+  submissionId String
+  submission   VehicleSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  url          String
+  storageKey   String?
+  altText      String?
+  sortOrder    Int               @default(0)
+  isPrimary    Boolean           @default(false)
+  createdAt    DateTime          @default(now())
+
+  @@index([submissionId])
+}
+
+// ─── Leads ────────────────────────────────────────────────────────────────
+
+model Enquiry {
+  id        String        @id @default(cuid())
+  vehicleId String?
+  vehicle   Vehicle?      @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  userId    String?
+  user      User?         @relation("EnquiryUser", fields: [userId], references: [id], onDelete: SetNull)
+  name      String
+  phone     String
+  email     String?
+  message   String?
+  status    EnquiryStatus @default(NEW)
+
+  assignedToId  String?
+  assignedTo    User?   @relation("EnquiryAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  internalNotes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([vehicleId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model CallbackRequest {
+  id            String         @id @default(cuid())
+  name          String
+  phone         String
+  preferredTime String?
+  message       String?
+  vehicleId     String?
+  vehicle       Vehicle?       @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  status        CallbackStatus @default(PENDING)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Favourite {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicleId String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, vehicleId])
+  @@index([userId])
+}
+
+// ─── System ───────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  type      NotificationType @default(GENERAL)
+  title     String
+  body      String?
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([readAt])
+  @@index([createdAt])
+}
+
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
