@@ -64,18 +64,90 @@ export async function getFarmerById(session: AppSession, farmerId: string) {
   const farmer = await prisma.farmer.findUnique({
     where: { id: farmerId },
     include: {
-      landParcels: { orderBy: { createdAt: "asc" } },
+      landParcels: { where: { deletedAt: null }, orderBy: { createdAt: "asc" } },
       documents: { select: { id: true, type: true, valueMasked: true, createdAt: true } },
       crops: {
         where: { deletedAt: null },
         orderBy: { createdAt: "desc" },
-        include: { cropMaster: true, landParcel: true },
+        include: {
+          cropMaster: true,
+          landParcel: true,
+          currentStage: { select: { id: true, stageNameSnapshot: true, sequenceSnapshot: true } },
+          timelineStages: {
+            orderBy: { sequenceSnapshot: "asc" },
+            select: {
+              sequenceSnapshot: true,
+              stageNameSnapshot: true,
+              expectedStartDate: true,
+              expectedEndDate: true,
+              actualStartDate: true,
+              actualEndDate: true,
+            },
+          },
+          healthRecords: { orderBy: { createdAt: "desc" }, take: 1 },
+        },
       },
     },
   });
   if (!farmer) return null;
   assertOwnedByFarmer(session, farmer.id);
   return farmer;
+}
+
+/**
+ * A farmer's full relationship history in one call: treatments
+ * (recommendation -> applications -> result -> feedback chain),
+ * follow-ups, feedback, and purchases (transactions). Used by Farmer 360
+ * and reused as-is by the farmer's own portal view — one aggregation, two
+ * consumers, never a second copy of this query.
+ */
+export async function getFarmerHistory(session: AppSession, farmerId: string) {
+  assertOwnedByFarmer(session, farmerId);
+
+  const [recommendations, followups, feedback, transactions] = await Promise.all([
+    prisma.recommendation.findMany({
+      where: { crop: { farmerId } },
+      orderBy: { createdAt: "desc" },
+      include: {
+        product: true,
+        crop: { select: { id: true, cropMaster: { select: { name: true } } } },
+        timelineStage: { select: { stageNameSnapshot: true } },
+        applications: { include: { treatmentResult: { include: { feedback: true } } } },
+      },
+    }),
+    prisma.followup.findMany({
+      where: { farmerId },
+      orderBy: { dueDate: "desc" },
+      include: {
+        farmer: { select: { id: true, fullName: true, village: true, phone: true } },
+        crop: { select: { id: true, cropMaster: { select: { name: true } } } },
+      },
+    }),
+    prisma.farmerFeedback.findMany({
+      where: { farmerId },
+      orderBy: { createdAt: "desc" },
+      include: {
+        treatmentResult: {
+          include: {
+            application: {
+              include: {
+                recommendation: {
+                  include: { product: true, crop: { select: { cropMaster: { select: { name: true } } } } },
+                },
+              },
+            },
+          },
+        },
+      },
+    }),
+    prisma.transaction.findMany({
+      where: { farmerId },
+      orderBy: { createdAt: "desc" },
+      include: { items: { include: { product: { select: { id: true, name: true } } } } },
+    }),
+  ]);
+
+  return { recommendations, followups, feedback, transactions };
 }
 
 export async function getOwnFarmerProfile(session: AppSession) {
@@ -90,6 +162,7 @@ export type CreateFarmerInput = {
   fatherOrHusbandName?: string;
   phone: string;
   altPhone?: string;
+  email?: string;
   gender?: string;
   dob?: Date;
   address?: string;
@@ -98,6 +171,7 @@ export type CreateFarmerInput = {
   district?: string;
   state?: string;
   pincode?: string;
+  notes?: string;
 };
 
 export async function createFarmer(session: AppSession, input: CreateFarmerInput) {
@@ -116,12 +190,14 @@ export async function updateFarmer(
 
 const SUCCESSFUL_RESULTS = ["EXCELLENT", "GOOD"] as const;
 const INACTIVE_CROP_STATUSES = ["COMPLETED", "HARVESTED", "FAILED", "CANCELLED"] as const;
+const HARVESTED_CROP_STATUSES = ["HARVESTED", "COMPLETED"] as const;
 
 export async function getFarmerStats(session: AppSession, farmerId: string) {
   assertOwnedByFarmer(session, farmerId);
 
-  const [landParcels, crops, treatmentResults, feedback, pendingFollowups] = await Promise.all([
-    prisma.landParcel.findMany({ where: { farmerId }, select: { areaAcres: true } }),
+  const [farmer, landParcels, crops, treatmentResults, feedback, pendingFollowups] = await Promise.all([
+    prisma.farmer.findUnique({ where: { id: farmerId }, select: { createdAt: true } }),
+    prisma.landParcel.findMany({ where: { farmerId, deletedAt: null }, select: { areaAcres: true } }),
     prisma.crop.findMany({ where: { farmerId, deletedAt: null }, select: { status: true } }),
     prisma.treatmentResult.findMany({
       where: { application: { recommendation: { crop: { farmerId } } } },
@@ -133,6 +209,7 @@ export async function getFarmerStats(session: AppSession, farmerId: string) {
 
   const totalLandAcres = landParcels.reduce((sum, p) => sum + Number(p.areaAcres), 0);
   const activeCrops = crops.filter((c) => !INACTIVE_CROP_STATUSES.includes(c.status as never)).length;
+  const cropsHarvested = crops.filter((c) => HARVESTED_CROP_STATUSES.includes(c.status as never)).length;
   const treatmentSuccessRate =
     treatmentResults.length === 0
       ? null
@@ -150,9 +227,13 @@ export async function getFarmerStats(session: AppSession, farmerId: string) {
     totalLandAcres,
     totalCrops: crops.length,
     activeCrops,
+    cropsHarvested,
+    totalTreatments: treatmentResults.length,
     treatmentSuccessRate,
     avgSatisfaction,
     pendingFollowups,
+    /** Null only if the farmer row itself somehow vanished mid-query — never a guess. */
+    registeredAt: farmer?.createdAt ?? null,
   };
 }
 

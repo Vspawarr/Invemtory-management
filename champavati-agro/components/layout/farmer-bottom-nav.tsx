@@ -11,7 +11,7 @@ export function FarmerBottomNav() {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 backdrop-blur lg:hidden">
-      <ul className="grid grid-cols-4">
+      <ul className="grid grid-cols-5">
         {FARMER_NAV.map((item) => {
           const active = pathname.startsWith(item.href);
           return (

@@ -130,6 +130,13 @@ enum RainfallStatus {
   EXCESS_RAIN
 }
 
+enum LandOwnershipStatus {
+  OWNED
+  LEASED
+  SHARECROPPED
+  OTHER
+}
+
 // ---------------------------------------------------------------------------
 // Identity & farmer records
 // ---------------------------------------------------------------------------
@@ -164,6 +171,7 @@ model Farmer {
   fatherOrHusbandName String?
   phone               String    @unique
   altPhone            String?
+  email               String?
   gender              String?
   dob                 DateTime?
   address             String?
@@ -172,6 +180,7 @@ model Farmer {
   district            String    @default("Chhatrapati Sambhajinagar")
   state               String    @default("Maharashtra")
   pincode             String?
+  notes               String?
   isDemo              Boolean   @default(false)
   deletedAt           DateTime?
   createdAt           DateTime  @default(now())
@@ -206,23 +215,31 @@ model FarmerDocument {
 }
 
 model LandParcel {
-  id          String   @id @default(cuid())
-  farmerId    String
-  farmer      Farmer   @relation(fields: [farmerId], references: [id])
-  name        String
-  surveyNo    String?
-  areaAcres   Decimal  @db.Decimal(8, 2)
-  soilType    String?
-  waterSource String?
-  village     String
-  latitude    Float?
-  longitude   Float?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                  String              @id @default(cuid())
+  farmerId            String
+  farmer              Farmer              @relation(fields: [farmerId], references: [id])
+  name                String
+  surveyNo            String?
+  areaAcres           Decimal             @db.Decimal(8, 2)
+  soilType            String?
+  /// The parcel's water source, e.g. "Well", "Canal", "Borewell" — this IS
+  /// "irrigation source"; irrigationAvailable below is the separate
+  /// yes/no fact of whether irrigation infrastructure exists at all.
+  waterSource         String?
+  irrigationAvailable Boolean?            @default(true)
+  ownershipStatus     LandOwnershipStatus @default(OWNED)
+  notes               String?
+  village             String
+  latitude            Float?
+  longitude           Float?
+  deletedAt           DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
 
   crops Crop[]
 
   @@index([farmerId])
+  @@index([deletedAt])
 }
 
 // ---------------------------------------------------------------------------

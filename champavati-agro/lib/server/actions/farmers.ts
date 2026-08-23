@@ -176,6 +176,119 @@ export async function createFarmerLoginAction(
   }
 }
 
+const addLandParcelSchema = z.object({
+  farmerId: z.string(),
+  name: z.string().min(1, "Give this land parcel a name"),
+  surveyNo: z.string().optional(),
+  areaAcres: z.coerce.number().positive("Area must be greater than zero"),
+  soilType: z.string().optional(),
+  waterSource: z.string().optional(),
+  irrigationAvailable: z.boolean().optional(),
+  ownershipStatus: z.enum(["OWNED", "LEASED", "SHARECROPPED", "OTHER"]).optional(),
+  notes: z.string().optional(),
+  village: z.string().min(1),
+});
+
+/** Adds a land parcel to an EXISTING farmer — distinct from the land array
+ * created inline during registration (createFarmerWithLand). */
+export async function addLandParcelAction(
+  input: z.infer<typeof addLandParcelSchema>
+): Promise<ActionResult<{ id: string }>> {
+  try {
+    const session = await requireSession();
+    requireAdmin(session);
+    const data = addLandParcelSchema.parse(input);
+
+    const parcel = await prisma.landParcel.create({
+      data: {
+        farmerId: data.farmerId,
+        name: data.name,
+        surveyNo: data.surveyNo || null,
+        areaAcres: data.areaAcres,
+        soilType: data.soilType || null,
+        waterSource: data.waterSource || null,
+        irrigationAvailable: data.irrigationAvailable ?? true,
+        ownershipStatus: data.ownershipStatus ?? "OWNED",
+        notes: data.notes || null,
+        village: data.village,
+      },
+    });
+
+    await logAudit({
+      userId: session.user.id,
+      action: "LAND_PARCEL_CREATED",
+      entityType: "LandParcel",
+      entityId: parcel.id,
+      metadata: { farmerId: data.farmerId },
+    });
+
+    revalidatePath(`/admin/farmers/${data.farmerId}`);
+    return { ok: true, data: { id: parcel.id } };
+  } catch (error) {
+    return { ok: false, error: toFriendlyMessage(error) };
+  }
+}
+
+const updateFarmerSchema = z.object({
+  farmerId: z.string(),
+  fullName: z.string().min(2, "Enter the farmer's full name"),
+  fatherOrHusbandName: z.string().optional(),
+  altPhone: z.string().optional(),
+  email: z.string().email("Enter a valid email").optional().or(z.literal("")),
+  gender: z.string().optional(),
+  dob: z.string().optional(),
+  address: z.string().optional(),
+  village: z.string().min(1),
+  taluka: z.string().min(1),
+  district: z.string().min(1),
+  state: z.string().min(1),
+  pincode: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+/** Edits an existing farmer's profile fields. Never touches Aadhaar/documents
+ * — those go through addFarmerDocument's own encrypted, audit-logged path. */
+export async function updateFarmerAction(
+  input: z.infer<typeof updateFarmerSchema>
+): Promise<ActionResult> {
+  try {
+    const session = await requireSession();
+    requireAdmin(session);
+    const data = updateFarmerSchema.parse(input);
+
+    await prisma.farmer.update({
+      where: { id: data.farmerId },
+      data: {
+        fullName: data.fullName,
+        fatherOrHusbandName: data.fatherOrHusbandName || null,
+        altPhone: data.altPhone || null,
+        email: data.email || null,
+        gender: data.gender || null,
+        dob: data.dob ? new Date(data.dob) : null,
+        address: data.address || null,
+        village: data.village,
+        taluka: data.taluka,
+        district: data.district,
+        state: data.state,
+        pincode: data.pincode || null,
+        notes: data.notes || null,
+      },
+    });
+
+    await logAudit({
+      userId: session.user.id,
+      action: "FARMER_MODIFIED",
+      entityType: "Farmer",
+      entityId: data.farmerId,
+    });
+
+    revalidatePath(`/admin/farmers/${data.farmerId}`);
+    return { ok: true, data: undefined };
+  } catch (error) {
+    return { ok: false, error: toFriendlyMessage(error) };
+  }
+}
+
 export async function revealAadhaarAction(documentId: string): Promise<ActionResult<{ value: string }>> {
   try {
     const session = await requireSession();

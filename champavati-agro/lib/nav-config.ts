@@ -10,6 +10,7 @@ import {
   Settings,
   Box,
   BarChart3,
+  Landmark,
 } from "lucide-react";
 
 export interface NavItem {
@@ -65,6 +66,7 @@ export const ADMIN_NAV: NavItem[] = [
 export const FARMER_NAV: NavItem[] = [
   { label: "Dashboard", href: "/farmer/dashboard", icon: LayoutDashboard },
   { label: "My Crops", href: "/farmer/crops", icon: Sprout },
+  { label: "My Farm", href: "/farmer/profile", icon: Landmark },
   { label: "Follow-ups", href: "/farmer/followups", icon: CalendarClock },
   { label: "Feedback", href: "/farmer/feedback", icon: MessageSquareHeart },
 ];

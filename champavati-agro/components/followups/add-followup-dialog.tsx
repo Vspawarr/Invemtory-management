@@ -24,9 +24,24 @@ import {
 } from "@/components/ui/dialog";
 import { createFollowupAction } from "@/lib/server/actions/followups";
 
-export function AddFollowupDialog({ farmers }: { farmers: { id: string; fullName: string }[] }) {
+export function AddFollowupDialog({
+  farmers,
+  defaultFarmerId,
+  crops,
+  trigger,
+}: {
+  /** Full farmer picker list — omit when `defaultFarmerId` is set (Farmer 360 quick action). */
+  farmers?: { id: string; fullName: string }[];
+  /** Preset + lock the farmer, e.g. when opened from that farmer's own profile page. */
+  defaultFarmerId?: string;
+  /** Optional crop picker, scoped to the preset farmer's own crops. */
+  crops?: { id: string; label: string }[];
+  /** Custom trigger button — defaults to a generic "Add follow-up" button. */
+  trigger?: React.ReactNode;
+}) {
   const [open, setOpen] = useState(false);
-  const [farmerId, setFarmerId] = useState("");
+  const [farmerId, setFarmerId] = useState(defaultFarmerId ?? "");
+  const [cropId, setCropId] = useState("");
   const [reason, setReason] = useState("");
   const [priority, setPriority] = useState<"LOW" | "MEDIUM" | "HIGH" | "URGENT">("MEDIUM");
   const [dueDate, setDueDate] = useState("");
@@ -38,7 +53,13 @@ export function AddFollowupDialog({ farmers }: { farmers: { id: string; fullName
       return;
     }
     setSubmitting(true);
-    const result = await createFollowupAction({ farmerId, reason, priority, dueDate });
+    const result = await createFollowupAction({
+      farmerId,
+      cropId: cropId || undefined,
+      reason,
+      priority,
+      dueDate,
+    });
     setSubmitting(false);
     if (!result.ok) {
       toast.error(result.error);
@@ -48,35 +69,57 @@ export function AddFollowupDialog({ farmers }: { farmers: { id: string; fullName
     setOpen(false);
     setReason("");
     setDueDate("");
+    setCropId("");
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
-          <Plus className="size-4" /> Add follow-up
-        </Button>
+        {trigger ?? (
+          <Button>
+            <Plus className="size-4" /> Add follow-up
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Schedule a follow-up</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="followup-farmer">Farmer</Label>
-            <Select value={farmerId} onValueChange={setFarmerId}>
-              <SelectTrigger id="followup-farmer">
-                <SelectValue placeholder="Select farmer" />
-              </SelectTrigger>
-              <SelectContent>
-                {farmers.map((f) => (
-                  <SelectItem key={f.id} value={f.id}>
-                    {f.fullName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {farmers && !defaultFarmerId && (
+            <div className="space-y-1.5">
+              <Label htmlFor="followup-farmer">Farmer</Label>
+              <Select value={farmerId} onValueChange={setFarmerId}>
+                <SelectTrigger id="followup-farmer">
+                  <SelectValue placeholder="Select farmer" />
+                </SelectTrigger>
+                <SelectContent>
+                  {farmers.map((f) => (
+                    <SelectItem key={f.id} value={f.id}>
+                      {f.fullName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {crops && crops.length > 0 && (
+            <div className="space-y-1.5">
+              <Label htmlFor="followup-crop">Crop (optional)</Label>
+              <Select value={cropId} onValueChange={setCropId}>
+                <SelectTrigger id="followup-crop">
+                  <SelectValue placeholder="Not crop-specific" />
+                </SelectTrigger>
+                <SelectContent>
+                  {crops.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label htmlFor="followup-reason">Reason</Label>
             <Input id="followup-reason" value={reason} onChange={(e) => setReason(e.target.value)} />

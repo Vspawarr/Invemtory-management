@@ -13,6 +13,10 @@ type Recommendation = {
   notes: string | null;
   product: { id: string; name: string; brand: string | null };
   timelineStage: { stageNameSnapshot: string } | null;
+  /** Only present when this journey spans multiple crops (e.g. Farmer 360°,
+   * where each entry needs to say which crop it belongs to) — Crop 360°
+   * omits it since the crop is already implied by the page. */
+  crop?: { cropMaster: { name: string } };
   applications: {
     id: string;
     status: string;
@@ -63,6 +67,7 @@ export function TreatmentJourney({
             {i > 0 && <Separator className="mb-6" />}
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span>{format(rec.createdAt, "d MMM yyyy")}</span>
+              {rec.crop && <Badge variant="secondary">{rec.crop.cropMaster.name}</Badge>}
               {rec.timelineStage && <Badge variant="outline">{rec.timelineStage.stageNameSnapshot}</Badge>}
             </div>
 
