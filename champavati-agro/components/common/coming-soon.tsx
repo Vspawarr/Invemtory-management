@@ -1,17 +1,19 @@
 "use client";
 
 import { motion } from "framer-motion";
-import type { LucideIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 
 export function ComingSoon({
-  icon: Icon,
+  icon,
   title,
   description,
   cta,
 }: {
-  icon: LucideIcon;
+  /** A rendered icon element (e.g. `<Box className="size-8" />`) — never a
+   * component reference, since this is a Client Component and a Server
+   * Component caller can't pass a function/component across that boundary. */
+  icon: React.ReactNode;
   title: string;
   description: string;
   cta?: React.ReactNode;
@@ -24,7 +26,7 @@ export function ComingSoon({
         transition={{ duration: 0.35 }}
         className="mb-5 flex size-16 items-center justify-center rounded-2xl bg-primary/10 text-primary"
       >
-        <Icon className="size-8" />
+        {icon}
       </motion.span>
       <Badge variant="secondary" className="mb-3">
         Coming soon

@@ -54,7 +54,7 @@ export const ADMIN_NAV: NavItem[] = [
     icon: CalendarClock,
   },
   { label: "Feedback", href: "/admin/feedback", icon: MessageSquareHeart },
-  { label: "Digital Farm", href: "/admin/farm-3d", icon: Box, comingSoon: true },
+  { label: "Digital Farm", href: "/admin/farm-3d", icon: Box },
   { label: "Reports", href: "/admin/reports", icon: BarChart3 },
   {
     label: "Settings",
