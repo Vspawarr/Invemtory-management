@@ -55,7 +55,7 @@ export const ADMIN_NAV: NavItem[] = [
   },
   { label: "Feedback", href: "/admin/feedback", icon: MessageSquareHeart },
   { label: "Digital Farm", href: "/admin/farm-3d", icon: Box, comingSoon: true },
-  { label: "Reports", href: "/admin/reports", icon: BarChart3, comingSoon: true },
+  { label: "Reports", href: "/admin/reports", icon: BarChart3 },
   {
     label: "Settings",
     href: "/admin/settings/crop-stages",
