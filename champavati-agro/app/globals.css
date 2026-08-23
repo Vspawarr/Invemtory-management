@@ -1,0 +1,180 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ---------------------------------------------------------------------- */
+/* Champavati Agro design tokens                                          */
+/* Brand palette: forest green / emerald primary; leaf green, earth      */
+/* brown, warm yellow, sky blue supporting; charcoal / off-white / soft   */
+/* gray neutrals. No hex values should appear directly in components —    */
+/* everything routes through these tokens.                                */
+/* ---------------------------------------------------------------------- */
+:root {
+  --radius: 0.75rem;
+
+  /* Brand scale */
+  --forest-50: oklch(0.97 0.02 155);
+  --forest-100: oklch(0.93 0.045 155);
+  --forest-300: oklch(0.78 0.09 155);
+  --forest-500: oklch(0.55 0.11 155);
+  --forest-600: oklch(0.46 0.1 155);
+  --forest-700: oklch(0.38 0.09 155);
+  --forest-900: oklch(0.24 0.06 155);
+
+  --emerald-400: oklch(0.77 0.15 155);
+  --emerald-500: oklch(0.68 0.16 155);
+  --emerald-600: oklch(0.6 0.16 155);
+
+  --leaf-400: oklch(0.8 0.14 130);
+  --leaf-500: oklch(0.72 0.16 130);
+  --leaf-600: oklch(0.63 0.15 130);
+
+  --earth-400: oklch(0.66 0.07 55);
+  --earth-500: oklch(0.55 0.08 55);
+  --earth-600: oklch(0.45 0.07 55);
+
+  --warmyellow-400: oklch(0.86 0.12 85);
+  --warmyellow-500: oklch(0.78 0.14 85);
+  --warmyellow-600: oklch(0.68 0.14 70);
+
+  --sky-400: oklch(0.78 0.09 235);
+  --sky-500: oklch(0.68 0.1 235);
+  --sky-600: oklch(0.58 0.1 235);
+
+  --charcoal-600: oklch(0.4 0.01 250);
+  --charcoal-800: oklch(0.24 0.012 250);
+  --charcoal-900: oklch(0.17 0.01 250);
+
+  --offwhite: oklch(0.985 0.004 100);
+  --softgray-100: oklch(0.96 0.004 250);
+  --softgray-200: oklch(0.92 0.006 250);
+  --softgray-400: oklch(0.75 0.008 250);
+
+  --danger-500: oklch(0.6 0.19 25);
+  --danger-600: oklch(0.52 0.18 25);
+  --warning-500: var(--warmyellow-600);
+  --success-500: var(--emerald-500);
+  --info-500: var(--sky-500);
+
+  /* Semantic (shadcn-style) tokens — light theme */
+  --background: var(--offwhite);
+  --foreground: var(--charcoal-900);
+  --card: oklch(1 0 0);
+  --card-foreground: var(--charcoal-900);
+  --popover: oklch(1 0 0);
+  --popover-foreground: var(--charcoal-900);
+  --primary: var(--forest-600);
+  --primary-foreground: var(--offwhite);
+  --secondary: var(--leaf-500);
+  --secondary-foreground: var(--charcoal-900);
+  --muted: var(--softgray-100);
+  --muted-foreground: var(--charcoal-600);
+  --accent: var(--warmyellow-500);
+  --accent-foreground: var(--charcoal-900);
+  --destructive: var(--danger-500);
+  --destructive-foreground: var(--offwhite);
+  --border: var(--softgray-200);
+  --input: var(--softgray-200);
+  --ring: var(--forest-500);
+}
+
+.dark {
+  --background: var(--charcoal-900);
+  --foreground: var(--offwhite);
+  --card: var(--charcoal-800);
+  --card-foreground: var(--offwhite);
+  --popover: var(--charcoal-800);
+  --popover-foreground: var(--offwhite);
+  --primary: var(--emerald-500);
+  --primary-foreground: var(--charcoal-900);
+  --secondary: var(--leaf-600);
+  --secondary-foreground: var(--offwhite);
+  --muted: var(--charcoal-800);
+  --muted-foreground: var(--softgray-400);
+  --accent: var(--warmyellow-600);
+  --accent-foreground: var(--charcoal-900);
+  --destructive: var(--danger-600);
+  --destructive-foreground: var(--offwhite);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: var(--emerald-500);
+}
+
+@theme inline {
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-success: var(--success-500);
+  --color-warning: var(--warning-500);
+  --color-info: var(--info-500);
+  --color-danger: var(--danger-500);
+
+  --color-forest-50: var(--forest-50);
+  --color-forest-100: var(--forest-100);
+  --color-forest-300: var(--forest-300);
+  --color-forest-500: var(--forest-500);
+  --color-forest-600: var(--forest-600);
+  --color-forest-700: var(--forest-700);
+  --color-forest-900: var(--forest-900);
+  --color-emerald-400: var(--emerald-400);
+  --color-emerald-500: var(--emerald-500);
+  --color-emerald-600: var(--emerald-600);
+  --color-leaf-400: var(--leaf-400);
+  --color-leaf-500: var(--leaf-500);
+  --color-leaf-600: var(--leaf-600);
+  --color-earth-400: var(--earth-400);
+  --color-earth-500: var(--earth-500);
+  --color-earth-600: var(--earth-600);
+  --color-warmyellow-400: var(--warmyellow-400);
+  --color-warmyellow-500: var(--warmyellow-500);
+  --color-warmyellow-600: var(--warmyellow-600);
+  --color-sky-400: var(--sky-400);
+  --color-sky-500: var(--sky-500);
+  --color-sky-600: var(--sky-600);
+
+  --radius-sm: calc(var(--radius) - 0.3rem);
+  --radius-md: calc(var(--radius) - 0.15rem);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 0.3rem);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+    outline-color: color-mix(in oklab, var(--color-ring) 50%, transparent);
+  }
+  body {
+    background: var(--color-background);
+    color: var(--color-foreground);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

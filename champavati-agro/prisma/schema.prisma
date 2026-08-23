@@ -1,0 +1,704 @@
+// Champavati Agro Intelligence — core data model.
+// See /root/.claude/plans/champavati-agro-digital-farmer-idempotent-parnas.md for the
+// architecture this implements (signed-offset timeline engine, anchor-date/anchor-type
+// domain model, historical snapshot integrity, RBAC data-access-layer enforcement).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  ADMIN
+  FARMER
+}
+
+/// The crop's lifecycle anchor — what a farmer-entered date actually means.
+/// Internal timeline math only ever uses the anchor date; this enum plus
+/// CropMaster.anchorLabel is purely for UI terminology.
+enum AnchorType {
+  SOWING
+  PLANTING
+  TRANSPLANTING
+}
+
+/// Season / planting-type variants. Sugarcane uses SURU | PRE_SEASONAL | ADSALI;
+/// Onion uses KHARIF | LATE_KHARIF | RABI. Cotton/Maize/Ginger leave this null
+/// (a single stage configuration applies to all cycles of that crop).
+enum PlantingType {
+  SURU
+  PRE_SEASONAL
+  ADSALI
+  KHARIF
+  LATE_KHARIF
+  RABI
+}
+
+enum CropStatus {
+  PLANNED
+  SEEDED
+  GROWING
+  FLOWERING
+  DEVELOPMENT
+  HARVEST_READY
+  HARVESTED
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+/// Delay is never auto-failure — DELAYED/NEEDS_REVIEW route to admin review instead.
+enum TimelineStageStatus {
+  UPCOMING
+  CURRENT
+  COMPLETED
+  DELAYED
+  NEEDS_REVIEW
+}
+
+enum ConfidenceLevel {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum ApplicationStatus {
+  RECOMMENDED
+  PURCHASED
+  APPLIED
+  NOT_APPLIED
+  CANCELLED
+}
+
+enum TreatmentResultEnum {
+  EXCELLENT
+  GOOD
+  MODERATE
+  NO_IMPROVEMENT
+  POOR
+  CROP_DAMAGED
+}
+
+enum FollowupStatus {
+  PENDING
+  COMPLETED
+  RESCHEDULED
+  CANCELLED
+}
+
+enum FollowupPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum DocumentType {
+  AADHAAR
+  PAN
+  OTHER
+}
+
+enum PhotoContext {
+  CROP
+  PEST
+  DISEASE
+  FIELD
+  TREATMENT
+  RESULT
+}
+
+enum TxnStatus {
+  PENDING
+  PAID
+  PARTIAL
+  CANCELLED
+}
+
+enum RainfallStatus {
+  NORMAL
+  DELAYED_MONSOON
+  DRY_SPELL
+  EXCESS_RAIN
+}
+
+// ---------------------------------------------------------------------------
+// Identity & farmer records
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  phone        String?  @unique
+  passwordHash String
+  role         Role
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  farmer               Farmer?             @relation("UserFarmer")
+  auditLogs            AuditLog[]
+  recommendationsMade  Recommendation[]    @relation("RecommendedBy")
+  healthRecordsLogged  CropHealthRecord[]  @relation("HealthRecordedBy")
+  weatherEntriesLogged WeatherContext[]    @relation("WeatherRecordedBy")
+  photosUploaded       CropPhoto[]         @relation("PhotoUploadedBy")
+  timelineAdjustments  CropTimelineStage[] @relation("TimelineAdjustedBy")
+  notifications        Notification[]      @relation("UserNotification")
+
+  @@index([role])
+}
+
+model Farmer {
+  id                  String    @id @default(cuid())
+  userId              String?   @unique
+  user                User?     @relation("UserFarmer", fields: [userId], references: [id])
+  fullName            String
+  fatherOrHusbandName String?
+  phone               String    @unique
+  altPhone            String?
+  gender              String?
+  dob                 DateTime?
+  address             String?
+  village             String
+  taluka              String    @default("Kannad")
+  district            String    @default("Chhatrapati Sambhajinagar")
+  state               String    @default("Maharashtra")
+  pincode             String?
+  isDemo              Boolean   @default(false)
+  deletedAt           DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  landParcels   LandParcel[]
+  crops         Crop[]
+  documents     FarmerDocument[]
+  transactions  Transaction[]
+  feedback      FarmerFeedback[]
+  followups     Followup[]
+  notifications Notification[]   @relation("FarmerNotification")
+
+  @@index([village])
+  @@index([phone])
+  @@index([deletedAt])
+}
+
+/// Aadhaar/PAN etc. valueMasked is always safe to render ("XXXX XXXX 1234").
+/// valueEnc is AES-256-GCM ciphertext, decrypted only by an admin-authorized
+/// server action (lib/server/documents.ts), and every reveal is audit-logged.
+model FarmerDocument {
+  id          String       @id @default(cuid())
+  farmerId    String
+  farmer      Farmer       @relation(fields: [farmerId], references: [id])
+  type        DocumentType
+  valueMasked String
+  valueEnc    String
+  createdAt   DateTime     @default(now())
+
+  @@index([farmerId])
+}
+
+model LandParcel {
+  id          String   @id @default(cuid())
+  farmerId    String
+  farmer      Farmer   @relation(fields: [farmerId], references: [id])
+  name        String
+  surveyNo    String?
+  areaAcres   Decimal  @db.Decimal(8, 2)
+  soilType    String?
+  waterSource String?
+  village     String
+  latitude    Float?
+  longitude   Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  crops Crop[]
+
+  @@index([farmerId])
+}
+
+// ---------------------------------------------------------------------------
+// Crop configuration (admin-editable master data — never hard-coded logic)
+// ---------------------------------------------------------------------------
+
+model CropMaster {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  localName   String
+  isActive    Boolean    @default(true)
+  /// What a farmer-entered anchor date means for this crop (Cotton/Maize = SOWING,
+  /// Ginger/Sugarcane = PLANTING, Onion = TRANSPLANTING).
+  anchorType  AnchorType
+  /// Crop-specific UI label for the anchor date field, e.g. "Sowing Date",
+  /// "Planting Date", "Sett Planting Date", "Transplanting Date" — two crops can
+  /// share an anchorType but use different labels (Ginger vs Sugarcane both PLANTING).
+  anchorLabel String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  stages             CropStageMaster[]
+  plantingWindows    CropPlantingWindow[]
+  crops              Crop[]
+  targetedByProducts Product[]
+
+  @@index([isActive])
+}
+
+/// Recommended calendar window for a planting type (e.g. Sugarcane ADSALI = Jul–Aug).
+/// startMonth/endMonth are 1-12; a window may wrap the year (e.g. Oct–Feb: startMonth
+/// > endMonth is valid and means "wraps December"). Used only as a non-blocking
+/// admin warning at crop creation — never blocks or silently changes a date.
+model CropPlantingWindow {
+  id           String       @id @default(cuid())
+  cropMasterId String
+  cropMaster   CropMaster   @relation(fields: [cropMasterId], references: [id])
+  plantingType PlantingType
+  startMonth   Int
+  endMonth     Int
+  label        String
+
+  @@unique([cropMasterId, plantingType])
+}
+
+/// Signed-offset stage timing model: offsets are relative to the crop's anchor date
+/// and MAY be negative (a stage before the anchor, e.g. Land Preparation before
+/// Sowing, or Onion Nursery Preparation before Transplanting). There is no
+/// "days after sowing" concept — duration is derived as endOffset - startOffset.
+model CropStageMaster {
+  id           String        @id @default(cuid())
+  cropMasterId String
+  cropMaster   CropMaster    @relation(fields: [cropMasterId], references: [id])
+  name         String
+  localName    String
+  /// Null when the crop has no planting-type variants (Cotton/Maize/Ginger);
+  /// set for Sugarcane/Onion where each planting type gets its own full stage list.
+  plantingType PlantingType?
+  sequence     Int
+
+  minStartOffsetDays     Int
+  defaultStartOffsetDays Int
+  maxStartOffsetDays     Int
+  minEndOffsetDays       Int
+  defaultEndOffsetDays   Int
+  maxEndOffsetDays       Int
+
+  criticalStage     Boolean
+  waterSensitive    Boolean
+  weatherSensitive  Boolean
+  monitoringActions String?
+  commonPests       String[]
+  commonDiseases    String[]
+  sourceReference   String?
+  confidenceLevel   ConfidenceLevel @default(MEDIUM)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  timelineStages  CropTimelineStage[]
+  recommendations Recommendation[]
+
+  @@unique([cropMasterId, plantingType, sequence])
+  @@index([cropMasterId])
+}
+
+// ---------------------------------------------------------------------------
+// Crop cycle + timeline snapshot (historical integrity)
+// ---------------------------------------------------------------------------
+
+model Crop {
+  id           String        @id @default(cuid())
+  farmerId     String
+  farmer       Farmer        @relation(fields: [farmerId], references: [id])
+  landParcelId String
+  landParcel   LandParcel    @relation(fields: [landParcelId], references: [id])
+  cropMasterId String
+  cropMaster   CropMaster    @relation(fields: [cropMasterId], references: [id])
+  variety      String?
+  season       String
+  plantingType PlantingType?
+  areaAcres    Decimal       @db.Decimal(8, 2)
+
+  /// The single authoritative lifecycle anchor date (no separate "sowingDate" field
+  /// — anchorType says what it means for this crop; UI renders CropMaster.anchorLabel).
+  anchorDate DateTime
+  anchorType AnchorType
+
+  irrigationAvailable Boolean    @default(true)
+  expectedHarvestDate DateTime?
+  actualHarvestDate   DateTime?
+  status              CropStatus @default(PLANNED)
+
+  currentStageId String?
+  currentStage   CropTimelineStage? @relation("CropCurrentStage", fields: [currentStageId], references: [id])
+
+  isDemo    Boolean   @default(false)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  timelineStages  CropTimelineStage[] @relation("CropTimeline")
+  stageHistory    CropStageHistory[]
+  healthRecords   CropHealthRecord[]
+  recommendations Recommendation[]
+  photos          CropPhoto[]
+  followups       Followup[]
+  weatherContexts WeatherContext[]
+
+  @@index([farmerId])
+  @@index([landParcelId])
+  @@index([status])
+  @@index([cropMasterId])
+  @@index([expectedHarvestDate])
+  @@index([deletedAt])
+}
+
+/// Per-crop snapshot of its timeline, generated once at crop creation from
+/// CropStageMaster + the crop's anchor date. Later edits to CropStageMaster never
+/// touch existing snapshots — this is what guarantees historical immutability.
+model CropTimelineStage {
+  id            String           @id @default(cuid())
+  cropId        String
+  crop          Crop             @relation("CropTimeline", fields: [cropId], references: [id])
+  stageMasterId String?
+  stageMaster   CropStageMaster? @relation(fields: [stageMasterId], references: [id], onDelete: SetNull)
+
+  stageNameSnapshot       String
+  localNameSnapshot       String
+  sequenceSnapshot        Int
+  startOffsetDaysSnapshot Int
+  endOffsetDaysSnapshot   Int
+
+  expectedStartDate DateTime
+  expectedEndDate   DateTime
+  actualStartDate   DateTime?
+  actualEndDate     DateTime?
+
+  status TimelineStageStatus @default(UPCOMING)
+
+  criticalStageSnapshot     Boolean
+  waterSensitiveSnapshot    Boolean
+  weatherSensitiveSnapshot  Boolean
+  monitoringActionsSnapshot String?
+  commonPestsSnapshot       String[]
+  commonDiseasesSnapshot    String[]
+  notes                     String?
+
+  /// Set whenever an admin manually changes expected/actual dates or status —
+  /// mandatory on any such change, never a silent overwrite.
+  adjustmentReason String?
+  adjustedById     String?
+  adjustedBy       User?     @relation("TimelineAdjustedBy", fields: [adjustedById], references: [id])
+  adjustedAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cropsCurrentlyHere Crop[]             @relation("CropCurrentStage")
+  history            CropStageHistory[]
+  healthRecords      CropHealthRecord[]
+  recommendations    Recommendation[]
+
+  @@index([cropId])
+  @@index([status])
+}
+
+/// Append-only stage-transition log — kept even across manual snapshot adjustments.
+model CropStageHistory {
+  id              String            @id @default(cuid())
+  cropId          String
+  crop            Crop              @relation(fields: [cropId], references: [id])
+  timelineStageId String
+  timelineStage   CropTimelineStage @relation(fields: [timelineStageId], references: [id])
+  enteredAt       DateTime          @default(now())
+  notes           String?
+
+  @@index([cropId])
+}
+
+model CropHealthRecord {
+  id              String             @id @default(cuid())
+  cropId          String
+  crop            Crop               @relation(fields: [cropId], references: [id])
+  timelineStageId String?
+  timelineStage   CropTimelineStage? @relation(fields: [timelineStageId], references: [id])
+  recordedById    String
+  recordedBy      User               @relation("HealthRecordedBy", fields: [recordedById], references: [id])
+
+  overallHealth      Int
+  pestSeverity       Int
+  diseaseSeverity    Int
+  weedSeverity       Int
+  growthRating       Int
+  waterCondition     Int
+  nutrientDeficiency Int
+  notes              String?
+  createdAt          DateTime @default(now())
+
+  photos CropPhoto[]
+
+  @@index([cropId])
+  @@index([timelineStageId])
+}
+
+// ---------------------------------------------------------------------------
+// Products & treatment chain — each concept kept separate, never conflated
+// ---------------------------------------------------------------------------
+
+model ProductCategory {
+  id   String @id @default(cuid())
+  name String @unique
+
+  products Product[]
+}
+
+model Product {
+  id               String          @id @default(cuid())
+  name             String
+  categoryId       String
+  category         ProductCategory @relation(fields: [categoryId], references: [id])
+  brand            String?
+  manufacturer     String?
+  activeIngredient String?
+  unit             String
+  packSize         String
+  mrp              Decimal         @db.Decimal(10, 2)
+  sellingPrice     Decimal         @db.Decimal(10, 2)
+  targetCropId     String?
+  targetCrop       CropMaster?     @relation(fields: [targetCropId], references: [id])
+  targetPest       String?
+  description      String?
+  usageNotes       String?
+  isActive         Boolean         @default(true)
+  deletedAt        DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  transactionItems TransactionItem[]
+  recommendations  Recommendation[]
+
+  @@index([categoryId])
+  @@index([isActive])
+  @@index([targetCropId])
+}
+
+model Transaction {
+  id          String    @id @default(cuid())
+  farmerId    String
+  farmer      Farmer    @relation(fields: [farmerId], references: [id])
+  status      TxnStatus @default(PAID)
+  totalAmount Decimal   @db.Decimal(10, 2)
+  notes       String?
+  createdAt   DateTime  @default(now())
+
+  items TransactionItem[]
+
+  @@index([farmerId])
+}
+
+model TransactionItem {
+  id            String      @id @default(cuid())
+  transactionId String
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  productId     String
+  product       Product     @relation(fields: [productId], references: [id])
+  quantity      Decimal     @db.Decimal(10, 2)
+  unitPrice     Decimal     @db.Decimal(10, 2)
+  lineTotal     Decimal     @db.Decimal(10, 2)
+
+  @@index([transactionId])
+  @@index([productId])
+}
+
+/// Admin-originated only — the system never autonomously prescribes a product.
+model Recommendation {
+  id                  String             @id @default(cuid())
+  cropId              String
+  crop                Crop               @relation(fields: [cropId], references: [id])
+  timelineStageId     String?
+  timelineStage       CropTimelineStage? @relation(fields: [timelineStageId], references: [id])
+  productId           String
+  product             Product            @relation(fields: [productId], references: [id])
+  recommendedById     String
+  recommendedBy       User               @relation("RecommendedBy", fields: [recommendedById], references: [id])
+  targetPestOrDisease String?
+  dosage              String?
+  applicationMethod   String?
+  instructions        String?
+  notes               String?
+  createdAt           DateTime           @default(now())
+
+  applications      Application[]
+  cropStageMaster   CropStageMaster? @relation(fields: [cropStageMasterId], references: [id])
+  cropStageMasterId String?
+
+  @@index([cropId])
+  @@index([productId])
+  @@index([timelineStageId])
+}
+
+model Application {
+  id               String            @id @default(cuid())
+  recommendationId String
+  recommendation   Recommendation    @relation(fields: [recommendationId], references: [id])
+  status           ApplicationStatus @default(RECOMMENDED)
+  appliedDate      DateTime?
+  quantityUsed     Decimal?          @db.Decimal(10, 2)
+  notes            String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  treatmentResult TreatmentResult?
+  photos          CropPhoto[]
+
+  @@index([recommendationId])
+  @@index([status])
+}
+
+model TreatmentResult {
+  id                    String              @id @default(cuid())
+  applicationId         String              @unique
+  application           Application         @relation(fields: [applicationId], references: [id])
+  pestSeverityBefore    Int?
+  pestSeverityAfter     Int?
+  diseaseSeverityBefore Int?
+  diseaseSeverityAfter  Int?
+  improvementPercent    Int?
+  result                TreatmentResultEnum
+  observedAt            DateTime            @default(now())
+  notes                 String?
+
+  feedback FarmerFeedback?
+  photos   CropPhoto[]
+
+  @@index([applicationId])
+  @@index([result])
+}
+
+model FarmerFeedback {
+  id                String          @id @default(cuid())
+  treatmentResultId String          @unique
+  treatmentResult   TreatmentResult @relation(fields: [treatmentResultId], references: [id])
+  farmerId          String
+  farmer            Farmer          @relation(fields: [farmerId], references: [id])
+  rating            Int
+  satisfied         Boolean
+  comments          String?
+  createdAt         DateTime        @default(now())
+
+  followups Followup[]
+
+  @@index([farmerId])
+  @@index([treatmentResultId])
+}
+
+model Followup {
+  id          String           @id @default(cuid())
+  farmerId    String
+  farmer      Farmer           @relation(fields: [farmerId], references: [id])
+  cropId      String?
+  crop        Crop?            @relation(fields: [cropId], references: [id])
+  feedbackId  String?
+  feedback    FarmerFeedback?  @relation(fields: [feedbackId], references: [id])
+  reason      String
+  priority    FollowupPriority @default(MEDIUM)
+  status      FollowupStatus   @default(PENDING)
+  dueDate     DateTime
+  completedAt DateTime?
+  notes       String?
+  createdAt   DateTime         @default(now())
+
+  @@index([farmerId])
+  @@index([status, dueDate])
+  @@index([cropId])
+}
+
+// ---------------------------------------------------------------------------
+// Weather architecture — advisory-only parameterization, never fake data,
+// never an auto date/stage shift.
+// ---------------------------------------------------------------------------
+
+model WeatherContext {
+  id                  String         @id @default(cuid())
+  cropId              String?
+  crop                Crop?          @relation(fields: [cropId], references: [id])
+  village             String?
+  rainfallStatus      RainfallStatus
+  rainfallLast7Days   Float?
+  rainfallLast14Days  Float?
+  irrigationAvailable Boolean
+  notes               String?
+  recordedById        String
+  recordedBy          User           @relation("WeatherRecordedBy", fields: [recordedById], references: [id])
+  recordedAt          DateTime       @default(now())
+
+  @@index([cropId])
+  @@index([village])
+}
+
+// ---------------------------------------------------------------------------
+// Support
+// ---------------------------------------------------------------------------
+
+model CropPhoto {
+  id                String            @id @default(cuid())
+  context           PhotoContext
+  cropId            String?
+  crop              Crop?             @relation(fields: [cropId], references: [id])
+  healthRecordId    String?
+  healthRecord      CropHealthRecord? @relation(fields: [healthRecordId], references: [id])
+  applicationId     String?
+  application       Application?      @relation(fields: [applicationId], references: [id])
+  treatmentResultId String?
+  treatmentResult   TreatmentResult?  @relation(fields: [treatmentResultId], references: [id])
+  storageKey        String
+  mimeType          String
+  sizeBytes         Int
+  caption           String?
+  uploadedById      String
+  uploadedBy        User              @relation("PhotoUploadedBy", fields: [uploadedById], references: [id])
+  createdAt         DateTime          @default(now())
+
+  @@index([cropId])
+  @@index([healthRecordId])
+  @@index([applicationId])
+  @@index([treatmentResultId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  farmerId  String?
+  farmer    Farmer?  @relation("FarmerNotification", fields: [farmerId], references: [id])
+  userId    String?
+  user      User?    @relation("UserNotification", fields: [userId], references: [id])
+  title     String
+  body      String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([farmerId])
+  @@index([userId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
