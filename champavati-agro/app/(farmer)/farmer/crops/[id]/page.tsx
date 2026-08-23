@@ -5,6 +5,7 @@ import { Activity, CalendarClock, Landmark, Leaf, Stethoscope } from "lucide-rea
 
 import { requireSession } from "@/lib/server/require-session";
 import { getCropById } from "@/lib/server/dal/crops";
+import { listCropPhotos } from "@/lib/server/dal/photos";
 import { computeCropStageStatuses, getCropStageDisplay } from "@/lib/server/crop-timeline/rules";
 import { calculateCropAgeDays } from "@/lib/server/crop-timeline/crop-age";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +14,7 @@ import { KpiCard } from "@/components/dashboard/kpi-card";
 import { InfoTile } from "@/components/dashboard/info-tile";
 import { CropLifecycleTimeline, type TimelineStageVM } from "@/components/crops/crop-lifecycle-timeline";
 import { TreatmentJourney } from "@/components/crops/treatment-journey";
+import { PhotoGallery } from "@/components/crops/photo-gallery";
 import { EmptyState } from "@/components/common/empty-state";
 
 export const metadata: Metadata = { title: "My Crop — Champavati Agro" };
@@ -22,6 +24,7 @@ export default async function FarmerCropDetailPage({ params }: { params: Promise
   const session = await requireSession();
   const crop = await getCropById(session, id);
   if (!crop) notFound();
+  const { photos, total: totalPhotos } = await listCropPhotos(session, crop.id, { take: 12 });
 
   const today = new Date();
   const currentStageSequence = crop.currentStage?.sequenceSnapshot ?? null;
@@ -107,6 +110,21 @@ export default async function FarmerCropDetailPage({ params }: { params: Promise
           ) : (
             <CropLifecycleTimeline stages={stages} anchorLabel={crop.anchorType.replace("_", " ")} />
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Field photos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <PhotoGallery
+            key={totalPhotos}
+            cropId={crop.id}
+            initialPhotos={photos}
+            initialTotal={totalPhotos}
+            hideObservation
+          />
         </CardContent>
       </Card>
 

@@ -50,19 +50,29 @@ export async function getCropById(session: AppSession, cropId: string) {
       cropMaster: true,
       currentStage: true,
       timelineStages: { orderBy: { sequenceSnapshot: "asc" } },
-      healthRecords: { orderBy: { createdAt: "desc" }, include: { photos: true } },
+      healthRecords: {
+        orderBy: { createdAt: "desc" },
+        include: { photos: { where: { deletedAt: null }, orderBy: { createdAt: "desc" } } },
+      },
       recommendations: {
         orderBy: { createdAt: "desc" },
         include: {
           product: true,
           timelineStage: true,
           applications: {
-            include: { treatmentResult: { include: { feedback: true, photos: true } }, photos: true },
+            include: {
+              treatmentResult: {
+                include: {
+                  feedback: true,
+                  photos: { where: { deletedAt: null }, orderBy: { createdAt: "desc" } },
+                },
+              },
+              photos: { where: { deletedAt: null }, orderBy: { createdAt: "desc" } },
+            },
           },
         },
       },
       followups: { orderBy: { dueDate: "asc" } },
-      photos: true,
       weatherContexts: { orderBy: { recordedAt: "desc" }, take: 5 },
     },
   });

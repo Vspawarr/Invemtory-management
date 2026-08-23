@@ -15,6 +15,7 @@ import {
 
 import { requireSession } from "@/lib/server/require-session";
 import { getCropById } from "@/lib/server/dal/crops";
+import { listCropPhotos } from "@/lib/server/dal/photos";
 import { computeCropStageStatuses, getCropStageDisplay } from "@/lib/server/crop-timeline/rules";
 import { calculateCropAgeDays } from "@/lib/server/crop-timeline/crop-age";
 import { AdvanceStageDialog } from "@/components/crops/advance-stage-dialog";
@@ -27,6 +28,8 @@ import { CropLifecycleTimeline, type TimelineStageVM } from "@/components/crops/
 import { HealthRecordsPanel } from "@/components/crops/health-records-panel";
 import { WeatherPanel } from "@/components/crops/weather-panel";
 import { TreatmentJourney } from "@/components/crops/treatment-journey";
+import { PhotoGallery } from "@/components/crops/photo-gallery";
+import { PhotoUploadDialog } from "@/components/crops/photo-upload-dialog";
 import { EmptyState } from "@/components/common/empty-state";
 
 export const metadata: Metadata = { title: "Crop 360° — Champavati Agro" };
@@ -49,6 +52,7 @@ export default async function CropProfilePage({ params }: { params: Promise<{ id
   const session = await requireSession();
   const crop = await getCropById(session, id);
   if (!crop) notFound();
+  const { photos, total: totalPhotos } = await listCropPhotos(session, crop.id, { take: 100 });
 
   const today = new Date();
   const currentStageSequence = crop.currentStage?.sequenceSnapshot ?? null;
@@ -63,6 +67,12 @@ export default async function CropProfilePage({ params }: { params: Promise<{ id
   const statusBySequence = new Map(statused.map((s) => [s.sequence, s.status]));
   const stageDisplay = getCropStageDisplay(stageInput, currentStageSequence, today);
   const expectedStage = crop.timelineStages.find((s) => s.sequenceSnapshot === stageDisplay.expectedSequence);
+
+  const photosByStage = new Map<string, typeof photos>();
+  for (const photo of photos) {
+    if (!photo.timelineStageId) continue;
+    photosByStage.set(photo.timelineStageId, [...(photosByStage.get(photo.timelineStageId) ?? []), photo]);
+  }
 
   const stages: TimelineStageVM[] = crop.timelineStages.map((s) => ({
     id: s.id,
@@ -82,6 +92,7 @@ export default async function CropProfilePage({ params }: { params: Promise<{ id
     commonDiseasesSnapshot: s.commonDiseasesSnapshot,
     notes: s.notes,
     adjustmentReason: s.adjustmentReason,
+    photos: photosByStage.get(s.id),
   }));
 
   const cropAgeDays = calculateCropAgeDays(crop.anchorDate, today);
@@ -176,6 +187,29 @@ export default async function CropProfilePage({ params }: { params: Promise<{ id
               ) : (
                 <CropLifecycleTimeline stages={stages} anchorLabel={crop.anchorType.replace("_", " ")} />
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Crop photos</CardTitle>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">{totalPhotos} photo{totalPhotos === 1 ? "" : "s"}</span>
+                <PhotoUploadDialog
+                  cropId={crop.id}
+                  stages={crop.timelineStages.map((s) => ({ id: s.id, label: s.stageNameSnapshot }))}
+                  defaultStageId={crop.currentStageId}
+                />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <PhotoGallery
+                key={totalPhotos}
+                cropId={crop.id}
+                initialPhotos={photos}
+                initialTotal={totalPhotos}
+                editable
+              />
             </CardContent>
           </Card>
 

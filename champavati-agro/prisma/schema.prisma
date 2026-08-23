@@ -107,13 +107,25 @@ enum DocumentType {
   OTHER
 }
 
-enum PhotoContext {
-  CROP
+enum PhotoCategory {
+  FIELD_VISIT
+  CROP_HEALTH
   PEST
   DISEASE
-  FIELD
-  TREATMENT
-  RESULT
+  WEED
+  NUTRIENT_DEFICIENCY
+  WATER_CONDITION
+  GROWTH
+  TREATMENT_RESULT
+  HARVEST
+}
+
+/// Only meaningful for a photo linked to a TreatmentResult — distinguishes a
+/// before-treatment record from an after-treatment one. Null for every other
+/// photo (field visits, health observations, etc. have no before/after).
+enum PhotoPhase {
+  BEFORE
+  AFTER
 }
 
 enum TxnStatus {
@@ -192,6 +204,7 @@ model Farmer {
   transactions  Transaction[]
   feedback      FarmerFeedback[]
   followups     Followup[]
+  photos        CropPhoto[]
   notifications Notification[]   @relation("FarmerNotification")
 
   @@index([village])
@@ -236,7 +249,8 @@ model LandParcel {
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
 
-  crops Crop[]
+  crops  Crop[]
+  photos CropPhoto[]
 
   @@index([farmerId])
   @@index([deletedAt])
@@ -422,6 +436,7 @@ model CropTimelineStage {
   history            CropStageHistory[]
   healthRecords      CropHealthRecord[]
   recommendations    Recommendation[]
+  photos             CropPhoto[]
 
   @@index([cropId])
   @@index([status])
@@ -664,29 +679,66 @@ model WeatherContext {
 // Support
 // ---------------------------------------------------------------------------
 
+/// Field documentation + health/treatment evidence, always ultimately scoped
+/// to a Crop (and therefore a Farmer). farmerId/landParcelId are denormalized
+/// from the crop purely so RBAC checks and farmer-scoped listings are a
+/// single-row lookup rather than a join through Crop every time — the crop
+/// relation remains the source of truth and both are set together with it.
 model CropPhoto {
-  id                String            @id @default(cuid())
-  context           PhotoContext
-  cropId            String?
-  crop              Crop?             @relation(fields: [cropId], references: [id])
-  healthRecordId    String?
-  healthRecord      CropHealthRecord? @relation(fields: [healthRecordId], references: [id])
-  applicationId     String?
-  application       Application?      @relation(fields: [applicationId], references: [id])
+  id       String        @id @default(cuid())
+  category PhotoCategory
+  /// Only set for a photo linked to a TreatmentResult (before/after evidence).
+  phase    PhotoPhase?
+
+  cropId String?
+  crop   Crop?   @relation(fields: [cropId], references: [id])
+
+  farmerId String?
+  farmer   Farmer? @relation(fields: [farmerId], references: [id])
+
+  landParcelId String?
+  landParcel   LandParcel? @relation(fields: [landParcelId], references: [id])
+
+  /// The crop-timeline stage this was taken during, if known — this is what
+  /// lets the timeline show "📷 05 Aug" against the Flowering stage.
+  timelineStageId String?
+  timelineStage   CropTimelineStage? @relation(fields: [timelineStageId], references: [id], onDelete: SetNull)
+
+  healthRecordId String?
+  healthRecord   CropHealthRecord? @relation(fields: [healthRecordId], references: [id])
+
+  applicationId String?
+  application   Application? @relation(fields: [applicationId], references: [id])
+
   treatmentResultId String?
-  treatmentResult   TreatmentResult?  @relation(fields: [treatmentResultId], references: [id])
-  storageKey        String
-  mimeType          String
-  sizeBytes         Int
-  caption           String?
-  uploadedById      String
-  uploadedBy        User              @relation("PhotoUploadedBy", fields: [uploadedById], references: [id])
-  createdAt         DateTime          @default(now())
+  treatmentResult   TreatmentResult? @relation(fields: [treatmentResultId], references: [id])
+
+  /// Opaque, randomly generated key into the storage provider — never derived
+  /// from the original filename.
+  storageKey       String
+  mimeType         String
+  sizeBytes        Int
+  width            Int?
+  height           Int?
+  /// Sanitized/truncated only — never used to derive storageKey or a file path.
+  originalFilename String?
+  caption          String?
+  observation      String?
+
+  uploadedById String
+  uploadedBy   User   @relation("PhotoUploadedBy", fields: [uploadedById], references: [id])
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
 
   @@index([cropId])
+  @@index([farmerId])
+  @@index([landParcelId])
+  @@index([timelineStageId])
   @@index([healthRecordId])
   @@index([applicationId])
   @@index([treatmentResultId])
+  @@index([deletedAt])
 }
 
 model Notification {

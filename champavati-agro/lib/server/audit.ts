@@ -29,7 +29,8 @@ export type AuditAction =
   | "DOCUMENT_VIEWED"
   | "DOCUMENT_ADDED"
   | "DATA_EXPORT"
-  | "PHOTO_UPLOADED";
+  | "PHOTO_UPLOADED"
+  | "PHOTO_DELETED";
 
 /** Never pass passwords, raw Aadhaar, or other sensitive plaintext in `metadata`. */
 export async function logAudit(params: {

@@ -18,7 +18,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { InlinePhotoPicker, appendPhotosToFormData, type PendingPhoto } from "@/components/crops/inline-photo-picker";
 import { createTreatmentResultAction } from "@/lib/server/actions/treatments";
+import { uploadCropPhotosAction } from "@/lib/server/actions/photos";
 
 const RESULT_OPTIONS = ["EXCELLENT", "GOOD", "MODERATE", "NO_IMPROVEMENT", "POOR", "CROP_DAMAGED"] as const;
 
@@ -36,6 +38,21 @@ export function TreatmentResultForm({ applicationId, cropId }: { applicationId: 
   const router = useRouter();
   const { register, handleSubmit, setValue } = useForm<FormValues>();
   const [submitting, setSubmitting] = useState(false);
+  const [beforePhotos, setBeforePhotos] = useState<PendingPhoto[]>([]);
+  const [afterPhotos, setAfterPhotos] = useState<PendingPhoto[]>([]);
+
+  async function uploadPhase(treatmentResultId: string, phase: "BEFORE" | "AFTER", photos: PendingPhoto[]) {
+    if (photos.length === 0) return;
+    const formData = new FormData();
+    formData.set("cropId", cropId);
+    formData.set("category", "TREATMENT_RESULT");
+    formData.set("phase", phase);
+    formData.set("applicationId", applicationId);
+    formData.set("treatmentResultId", treatmentResultId);
+    appendPhotosToFormData(formData, photos);
+    const result = await uploadCropPhotosAction(formData);
+    if (!result.ok) toast.error(`${phase === "BEFORE" ? "Before" : "After"} photos failed: ${result.error}`);
+  }
 
   async function onSubmit(values: FormValues) {
     if (!values.result) {
@@ -44,11 +61,16 @@ export function TreatmentResultForm({ applicationId, cropId }: { applicationId: 
     }
     setSubmitting(true);
     const result = await createTreatmentResultAction({ applicationId, ...values });
-    setSubmitting(false);
     if (!result.ok) {
+      setSubmitting(false);
       toast.error(result.error);
       return;
     }
+    await Promise.all([
+      uploadPhase(result.data.id, "BEFORE", beforePhotos),
+      uploadPhase(result.data.id, "AFTER", afterPhotos),
+    ]);
+    setSubmitting(false);
     toast.success("Treatment result recorded.");
     router.push(`/admin/crops/${cropId}`);
   }
@@ -127,6 +149,10 @@ export function TreatmentResultForm({ applicationId, cropId }: { applicationId: 
           <div className="space-y-1.5">
             <Label htmlFor="tr-notes">Notes</Label>
             <Textarea id="tr-notes" {...register("notes")} />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <InlinePhotoPicker value={beforePhotos} onChange={setBeforePhotos} label="Before photos (optional)" />
+            <InlinePhotoPicker value={afterPhotos} onChange={setAfterPhotos} label="After photos (optional)" />
           </div>
           <div className="flex justify-end border-t pt-4">
             <Button type="submit" disabled={submitting}>

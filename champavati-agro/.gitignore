@@ -36,6 +36,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local filesystem storage provider — access-controlled uploads, never committed
+/.uploads
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

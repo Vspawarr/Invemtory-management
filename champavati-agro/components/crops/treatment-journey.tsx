@@ -26,6 +26,7 @@ type Recommendation = {
       result: string;
       improvementPercent: number | null;
       feedback: { id: string; rating: number; comments: string | null } | null;
+      photos?: { id: string; phase: "BEFORE" | "AFTER" | null }[];
     } | null;
   }[];
 };
@@ -114,6 +115,34 @@ export function TreatmentJourney({
             </div>
 
             {rec.dosage && <p className="mt-1 text-xs text-muted-foreground">Dosage: {rec.dosage}</p>}
+
+            {result?.photos && result.photos.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-3">
+                {(["BEFORE", "AFTER"] as const).map((phase) => {
+                  const phasePhotos = result.photos!.filter((p) => p.phase === phase);
+                  if (phasePhotos.length === 0) return null;
+                  return (
+                    <div key={phase}>
+                      <p className="mb-1 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+                        {phase === "BEFORE" ? "Before" : "After"}
+                      </p>
+                      <div className="flex gap-1.5">
+                        {phasePhotos.map((p) => (
+                          <a key={p.id} href={`/api/photos/${p.id}`} target="_blank" rel="noreferrer">
+                            {/* eslint-disable-next-line @next/next/no-img-element -- served from the authenticated /api/photos route */}
+                            <img
+                              src={`/api/photos/${p.id}`}
+                              alt={`${phase} treatment photo`}
+                              className="size-14 rounded-md border object-cover"
+                            />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             <div className="mt-2 flex gap-3 text-xs">
               {editable && application && !["APPLIED", "NOT_APPLIED", "CANCELLED"].includes(application.status) && (

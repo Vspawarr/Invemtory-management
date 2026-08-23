@@ -112,7 +112,16 @@ export async function getFarmerHistory(session: AppSession, farmerId: string) {
         product: true,
         crop: { select: { id: true, cropMaster: { select: { name: true } } } },
         timelineStage: { select: { stageNameSnapshot: true } },
-        applications: { include: { treatmentResult: { include: { feedback: true } } } },
+        applications: {
+          include: {
+            treatmentResult: {
+              include: {
+                feedback: true,
+                photos: { where: { deletedAt: null }, select: { id: true, phase: true } },
+              },
+            },
+          },
+        },
       },
     }),
     prisma.followup.findMany({

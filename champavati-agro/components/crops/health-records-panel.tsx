@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { Activity, Loader2, Plus } from "lucide-react";
+import { Activity, Camera, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,9 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/common/empty-state";
 import { RatingInput } from "@/components/crops/rating-input";
+import { InlinePhotoPicker, appendPhotosToFormData, type PendingPhoto } from "@/components/crops/inline-photo-picker";
 import { addHealthRecordAction } from "@/lib/server/actions/health";
+import { uploadCropPhotosAction } from "@/lib/server/actions/photos";
 
 type HealthRecord = {
   id: string;
@@ -33,6 +35,7 @@ type HealthRecord = {
   nutrientDeficiency: number;
   notes: string | null;
   createdAt: Date;
+  photos?: { id: string }[];
 };
 
 const FIELDS: { key: keyof typeof DEFAULTS; label: string }[] = [
@@ -59,33 +62,58 @@ export function HealthRecordsPanel({ cropId, records }: { cropId: string; record
   const [open, setOpen] = useState(false);
   const [ratings, setRatings] = useState({ ...DEFAULTS });
   const [notes, setNotes] = useState("");
+  const [photos, setPhotos] = useState<PendingPhoto[]>([]);
   const [submitting, setSubmitting] = useState(false);
+
+  function resetForm() {
+    photos.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+    setPhotos([]);
+    setNotes("");
+    setRatings({ ...DEFAULTS });
+  }
 
   async function submit() {
     setSubmitting(true);
     const result = await addHealthRecordAction({ cropId, ...ratings, notes });
-    setSubmitting(false);
     if (!result.ok) {
+      setSubmitting(false);
       toast.error(result.error);
       return;
     }
+
+    if (photos.length > 0) {
+      const formData = new FormData();
+      formData.set("cropId", cropId);
+      formData.set("category", "CROP_HEALTH");
+      formData.set("healthRecordId", result.data.id);
+      appendPhotosToFormData(formData, photos);
+      const photoResult = await uploadCropPhotosAction(formData);
+      if (!photoResult.ok) toast.error(`Health record saved, but photos failed: ${photoResult.error}`);
+    }
+
+    setSubmitting(false);
     toast.success("Health record added.");
     setOpen(false);
-    setNotes("");
-    setRatings({ ...DEFAULTS });
+    resetForm();
   }
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Crop health</CardTitle>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog
+          open={open}
+          onOpenChange={(next) => {
+            setOpen(next);
+            if (!next) resetForm();
+          }}
+        >
           <DialogTrigger asChild>
             <Button size="sm" variant="outline">
               <Plus className="size-4" /> Record
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Record crop health</DialogTitle>
             </DialogHeader>
@@ -103,6 +131,9 @@ export function HealthRecordsPanel({ cropId, records }: { cropId: string; record
               <Label htmlFor="health-notes">Notes</Label>
               <Textarea id="health-notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
+
+            <InlinePhotoPicker value={photos} onChange={setPhotos} />
+
             <DialogFooter>
               <Button onClick={submit} disabled={submitting}>
                 {submitting ? <Loader2 className="size-4 animate-spin" /> : "Save"}
@@ -135,6 +166,11 @@ export function HealthRecordsPanel({ cropId, records }: { cropId: string; record
                   <span>Water {r.waterCondition}/5</span>
                 </div>
                 {r.notes && <p className="mt-2 text-xs">{r.notes}</p>}
+                {r.photos && r.photos.length > 0 && (
+                  <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                    <Camera className="size-3.5" /> {r.photos.length} photo{r.photos.length === 1 ? "" : "s"}
+                  </p>
+                )}
               </li>
             ))}
           </ul>

@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { format } from "date-fns";
 import {
   AlertTriangle,
+  Camera,
   CheckCircle2,
   Circle,
   FlaskConical,
@@ -21,6 +22,8 @@ import {
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { PhotoLightbox } from "@/components/crops/photo-lightbox";
+import type { GalleryPhoto } from "@/lib/photo-types";
 
 export type TimelineStageVM = {
   id: string;
@@ -42,6 +45,9 @@ export type TimelineStageVM = {
   adjustmentReason: string | null;
   hasTreatmentActivity?: boolean;
   hasHealthConcern?: boolean;
+  /** Photos taken during this stage — drives the "📷 05 Aug" indicator and
+   * the drawer's Field Photos section. Never affects timeline calculation. */
+  photos?: GalleryPhoto[];
 };
 
 const STATUS_STYLES: Record<TimelineStageVM["status"], string> = {
@@ -67,6 +73,7 @@ export function CropLifecycleTimeline({
   anchorLabel: string;
 }) {
   const [selected, setSelected] = useState<TimelineStageVM | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const sorted = [...stages].sort((a, b) => a.sequenceSnapshot - b.sequenceSnapshot);
   const anchorSequence = sorted.find((s) => {
     const start = new Date(s.expectedStartDate).getTime();
@@ -158,6 +165,14 @@ export function CropLifecycleTimeline({
                     </span>
                   )}
                 </p>
+                {stage.photos && stage.photos.length > 0 && (
+                  <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                    <Camera className="size-3.5" />
+                    {format(stage.photos[0].createdAt, "d MMM")}
+                    {stage.photos.length > 1 && ` (+${stage.photos.length - 1} more)`}
+                    {stage.photos[0].caption ? ` — ${stage.photos[0].caption}` : ""}
+                  </p>
+                )}
               </button>
             </motion.li>
           );
@@ -246,11 +261,47 @@ export function CropLifecycleTimeline({
                     <p className="text-sm">{selected.notes}</p>
                   </div>
                 )}
+
+                {selected.photos && selected.photos.length > 0 && (
+                  <>
+                    <Separator />
+                    <div>
+                      <p className="mb-2 text-xs font-medium text-muted-foreground">Field photos</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {selected.photos.map((photo, i) => (
+                          <button
+                            key={photo.id}
+                            type="button"
+                            onClick={() => setLightboxIndex(i)}
+                            className="relative aspect-square overflow-hidden rounded-lg border"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element -- served from the authenticated /api/photos route */}
+                            <img
+                              src={`/api/photos/${photo.id}`}
+                              alt={photo.caption ?? ""}
+                              loading="lazy"
+                              className="size-full object-cover"
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </>
           )}
         </SheetContent>
       </Sheet>
+
+      {selected?.photos && lightboxIndex !== null && (
+        <PhotoLightbox
+          photos={selected.photos}
+          index={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+          onNavigate={setLightboxIndex}
+        />
+      )}
     </>
   );
 }
